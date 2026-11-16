@@ -1,0 +1,111 @@
+export const INITIAL_ACTIVITY_LOGS = [
+  {
+    id: 18,
+    at: "16 Nov, 02:04 pm",
+    actor: "Admin",
+    message: "AI settings saved · auto-approve at 78%",
+  },
+  {
+    id: 17,
+    at: "16 Nov, 02:04 pm",
+    actor: "Admin",
+    message: "Sheet columns updated",
+  },
+  {
+    id: 16,
+    at: "16 Nov, 01:22 pm",
+    actor: "Review",
+    message: "JV-1049 Operations Executive rejected",
+  },
+  {
+    id: 15,
+    at: "16 Nov, 12:34 pm",
+    actor: "System",
+    message: "Server started · AI reader: mock",
+  },
+  {
+    id: 14,
+    at: "16 Nov, 06:15 am",
+    actor: "Sorter",
+    message: "JV-1054 Accounts Assistant → India · Fresher",
+  },
+  {
+    id: 13,
+    at: "15 Nov, 05:58 am",
+    actor: "Verification",
+    message: "JV-1053 Sales Manager - B2B sent to review: exp_min",
+  },
+  {
+    id: 12,
+    at: "14 Nov, 05:41 am",
+    actor: "Dedupe",
+    message: "JV-1052 Marketing Manager matches JV-1042 · skipped",
+  },
+  {
+    id: 11,
+    at: "13 Nov, 05:24 am",
+    actor: "Verification",
+    message: "JV-1051 Content Writer sent to review: company, location",
+  },
+  {
+    id: 10,
+    at: "12 Nov, 05:07 am",
+    actor: "Sorter",
+    message: "JV-1050 Machine Learning Engineer → India · Junior",
+  },
+  {
+    id: 9,
+    at: "11 Nov, 04:50 am",
+    actor: "Verification",
+    message: "JV-1049 Operations Executive sent to review: low confidence",
+  },
+  {
+    id: 8,
+    at: "10 Nov, 04:33 am",
+    actor: "Dedupe",
+    message: "JV-1048 Senior Data Analyst matches JV-1041 · skipped",
+  },
+  {
+    id: 7,
+    at: "09 Nov, 04:16 am",
+    actor: "Sorter",
+    message: "JV-1047 Head of Engineering → India · Senior",
+  },
+  {
+    id: 6,
+    at: "08 Nov, 03:59 am",
+    actor: "Sorter",
+    message: "JV-1046 Supply Chain Lead → Global",
+  },
+  {
+    id: 5,
+    at: "07 Nov, 03:42 am",
+    actor: "Sorter",
+    message: "JV-1045 Frontend Developer (React) → Remote",
+  },
+  {
+    id: 4,
+    at: "06 Nov, 03:25 am",
+    actor: "Sorter",
+    message: "JV-1044 Business Analyst → India · Junior",
+  },
+  {
+    id: 3,
+    at: "05 Nov, 03:08 am",
+    actor: "Sorter",
+    message: "JV-1043 Customer Support Executive → India · Fresher",
+  },
+  {
+    id: 2,
+    at: "04 Nov, 02:51 am",
+    actor: "Sorter",
+    message: "JV-1042 Marketing Manager → Global",
+  },
+  {
+    id: 1,
+    at: "03 Nov, 02:34 am",
+    actor: "Sorter",
+    message: "JV-1041 Senior Data Analyst → India · Mid-level",
+  },
+];
+

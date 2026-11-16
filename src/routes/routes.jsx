@@ -1,6 +1,16 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 import Dashboard from "../pages/Dashboard";
+import Screenshots from "../pages/Screenshots";
+import JobSheet from "../pages/JobSheet";
+import Vaults from "../pages/Vaults";
+import ReviewQueue from "../pages/ReviewQueue";
+import VaultRules from "../pages/VaultRules";
+import SheetColumns from "../pages/SheetColumns";
+import AiReading from "../pages/AiReading";
+import Integrations from "../pages/Integrations";
+import ActivityLog from "../pages/ActivityLog";
+import Login from "../pages/Login";
 
 const renderPlaceholder = (title, description) => (
   <div className="flex flex-col gap-5">
@@ -25,6 +35,10 @@ const renderPlaceholder = (title, description) => (
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <Login />,
+  },
+  {
     path: "/",
     element: <Layout />,
     children: [
@@ -38,66 +52,43 @@ export const router = createBrowserRouter([
       },
       {
         path: "inbox",
-        element: renderPlaceholder(
-          "Screenshots",
-          "Add as many screenshots as you like. Each one is read on its own, so there is no 10–20 image limit."
-        ),
+        element: <Screenshots />,
+      },
+      {
+        path: "screenshots",
+        element: <Navigate to="/inbox" replace />,
       },
       {
         path: "jobs",
-        element: renderPlaceholder(
-          "Job sheet",
-          "Every job that was read from your screenshots. Filter, search, and export to Excel."
-        ),
+        element: <JobSheet />,
       },
       {
         path: "vaults",
-        element: renderPlaceholder(
-          "Vaults",
-          "Each vault is a tab in the Excel file and in Google Sheets. Change how jobs are sorted in Vault rules."
-        ),
+        element: <Vaults />,
       },
       {
         path: "review",
-        element: renderPlaceholder(
-          "Review queue",
-          "The AI could not read these clearly, so it left the unclear fields empty instead of guessing."
-        ),
+        element: <ReviewQueue />,
       },
       {
         path: "rules",
-        element: renderPlaceholder(
-          "Vault rules",
-          "Rules are checked from top to bottom and the first match wins. Saving re-sorts every existing job too."
-        ),
+        element: <VaultRules />,
       },
       {
         path: "columns",
-        element: renderPlaceholder(
-          "Sheet columns",
-          "The columns in your Excel file and Google Sheet, in this order. A job missing a required field goes to review."
-        ),
+        element: <SheetColumns />,
       },
       {
         path: "ai",
-        element: renderPlaceholder(
-          "AI reading",
-          "How screenshots are read. These checks are what stop the wrong or made-up values."
-        ),
+        element: <AiReading />,
       },
       {
         path: "integrations",
-        element: renderPlaceholder(
-          "Integrations",
-          "Where screenshots come from and where finished rows go. Connections are set in the server's .env file."
-        ),
+        element: <Integrations />,
       },
       {
         path: "activity",
-        element: renderPlaceholder(
-          "Activity log",
-          "Everything the system did, newest first."
-        ),
+        element: <ActivityLog />,
       },
       {
         path: "*",

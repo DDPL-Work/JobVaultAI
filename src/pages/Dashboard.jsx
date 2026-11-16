@@ -1,4 +1,8 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
+import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
+import { INITIAL_JOBS } from "../components/jobs/jobsData";
 
 // Platform brand colors matching the HTML design
 const SOURCE_COLORS = {
@@ -228,6 +232,10 @@ function SourceTag({ source }) {
  * Main Dashboard Page
  */
 export default function Dashboard() {
+  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [zoomImage, setZoomImage] = useState(null);
+
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12
@@ -236,12 +244,31 @@ export default function Dashboard() {
       ? "Good afternoon"
       : "Good evening";
 
+  const handleJobStatusChange = (jobId, newStatus) => {
+    setJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
+    );
+    setSelectedJob((prev) =>
+      prev && prev.id === jobId ? { ...prev, status: newStatus } : prev
+    );
+  };
+
+  const handleJobUpdate = (updatedJob) => {
+    setJobs((prev) =>
+      prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
+    );
+    setSelectedJob(updatedJob);
+  };
+
+  // Recent 8 jobs matching dashboard.html
+  const recentJobs = jobs.slice(0, 8);
+
   const maxVaultCount = Math.max(1, ...Object.values(STATS.byVault));
   const maxDayCount = Math.max(1, ...STATS.days.map((d) => d.count));
   const totalSources = STATS.bySource.reduce((acc, curr) => acc + curr.count, 0) || 1;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Page Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
@@ -282,14 +309,14 @@ export default function Dashboard() {
       </div>
 
       {/* Online Demo Banner */}
-      <div className="bg-[#FBEBCF] border border-transparent rounded-[6px] p-[12px_14px] text-[0.85rem] flex items-start gap-3 text-[#15202C]">
+      {/* <div className="bg-[#FBEBCF] border border-transparent rounded-[6px] p-[12px_14px] text-[0.85rem] flex items-start gap-3 text-[#15202C]">
         <b className="text-[#9A5B00] font-bold shrink-0">Online demo</b>
         <span>
           This page runs in your browser with sample data, so any screenshot you add gets a sample
           job. The installed version reads real screenshots with Gemini or OpenAI and saves to a
           database.
         </span>
-      </div>
+      </div> */}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 min-[1101px]:grid-cols-5 gap-4">
@@ -361,9 +388,10 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {STATS.recentJobs.map((job) => (
+                {recentJobs.map((job) => (
                   <tr
                     key={job.id}
+                    onClick={() => setSelectedJob(job)}
                     className="hover:bg-[#F6F7F9] transition-colors cursor-pointer"
                   >
                     <td className="p-[10px_12px] border-b border-[#DCE1E8]">
@@ -378,7 +406,7 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                      <SourceTag source={job.source} />
+                      <SourceTag source={job.source_app || job.source} />
                     </td>
                     <td className="p-[10px_12px] border-b border-[#DCE1E8]">
                       <StatusPill status={job.status} />
@@ -500,6 +528,25 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Slide-over Job Detail Drawer with smooth transitions */}
+      <JobDetailDrawer
+        job={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        onZoomImage={(img) => setZoomImage(img)}
+        onStatusChange={handleJobStatusChange}
+        onJobUpdate={handleJobUpdate}
+        onOpenJobId={(jobId) => {
+          const found = jobs.find((j) => j.id === jobId);
+          if (found) setSelectedJob(found);
+        }}
+      />
+
+      {/* Lightbox for zooming screenshot */}
+      <ScreenshotLightbox
+        imageSrc={zoomImage}
+        onClose={() => setZoomImage(null)}
+      />
     </div>
   );
 }
