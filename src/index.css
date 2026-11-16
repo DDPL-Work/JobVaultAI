@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --color-canvas: #F1F3F6;
+  --color-panel: #FFFFFF;
+  --color-panel-2: #F6F7F9;
+  --color-ink: #15202C;
+  --color-muted: #5A6777;
+  --color-line: #DCE1E8;
+  --color-accent: #9C6B12;
+  --color-accent-ink: #FFFFFF;
+  --color-accent-soft: #F5EAD3;
+  --color-side-bg: #15202C;
+  --color-side-fg: #C9D2DD;
+  --color-side-hi: #FFFFFF;
+  --color-side-line: #26333F;
+  --color-ok: #24734A;
+  --color-ok-soft: #DCF0E3;
+  --color-warn: #9A5B00;
+  --color-warn-soft: #FBEBCF;
+  --color-bad: #A8281F;
+  --color-bad-soft: #F8DEDB;
+  --color-info: #235F8C;
+  --color-info-soft: #DCEAF5;
+}
+
+@theme {
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --color-canvas: #F1F3F6;
+  --color-panel: #FFFFFF;
+  --color-panel-2: #F6F7F9;
+  --color-ink: #15202C;
+  --color-muted: #5A6777;
+  --color-line: #DCE1E8;
+  --color-accent: #9C6B12;
+  --color-accent-ink: #FFFFFF;
+  --color-accent-soft: #F5EAD3;
+  --color-side-bg: #15202C;
+  --color-side-fg: #C9D2DD;
+  --color-side-hi: #FFFFFF;
+  --color-side-line: #26333F;
+  --color-ok: #24734A;
+  --color-ok-soft: #DCF0E3;
+  --color-warn: #9A5B00;
+  --color-warn-soft: #FBEBCF;
+  --color-bad: #A8281F;
+  --color-bad-soft: #F8DEDB;
+  --color-info: #235F8C;
+  --color-info-soft: #DCEAF5;
+}
