@@ -52,11 +52,11 @@ export const INITIAL_VAULT_CONFIGS = [
 export const VAULT_STORAGE_KEY = "jobvault_vault_configs";
 
 /**
- * Loads vault configurations from localStorage or returns defaults
+ * Loads vault configurations from sessionStorage or returns defaults
  */
 export function loadVaultConfigs() {
   try {
-    const raw = localStorage.getItem(VAULT_STORAGE_KEY);
+    const raw = sessionStorage.getItem(VAULT_STORAGE_KEY);
     if (!raw) return INITIAL_VAULT_CONFIGS;
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
@@ -69,11 +69,11 @@ export function loadVaultConfigs() {
 }
 
 /**
- * Persists vault configurations to localStorage
+ * Persists vault configurations to sessionStorage
  */
 export function saveVaultConfigs(configs) {
   try {
-    localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(configs));
+    sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(configs));
   } catch (err) {
     console.error("Error saving vault configs:", err);
   }

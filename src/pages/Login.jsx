@@ -97,8 +97,8 @@ export default function Login({ initialMode = "login" }) {
       try {
         sessionStorage.setItem("jobvault_auth", "true");
         sessionStorage.setItem("jv_token", result.access || "");
-        localStorage.removeItem("jobvault_auth");
-        localStorage.removeItem("jv_token");
+        sessionStorage.removeItem("jobvault_auth");
+        sessionStorage.removeItem("jv_token");
       } catch {
         // ignore
       }

@@ -10,7 +10,7 @@
     <script>
       (function() {
         try {
-          var t = localStorage.getItem("jobvault_theme");
+          var t = sessionStorage.getItem("jobvault_theme");
           if (t === "dark") {
             document.documentElement.classList.add("dark");
             document.documentElement.setAttribute("data-theme", "dark");

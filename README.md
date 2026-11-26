@@ -102,7 +102,7 @@
 13. **Modern SPA UI & Clean URL Routing**:
     - Clean routing using HTML5 History API (`history.pushState` / `history.replaceState`) without hash fragments (`/dashboard/`).
     - Full-width responsive layout for high-resolution displays.
-    - Dual Theme (Light Mode & Dark Mode) with instant 1-click toggle (`☀️` / `🌙`) and `localStorage` persistence.
+    - Dual Theme (Light Mode & Dark Mode) with instant 1-click toggle (`☀️` / `🌙`) and `sessionStorage` persistence.
 
 14. **Production Deployment Ready**:
     - Cross-platform dependency specification in `requirements.txt` (`gunicorn` on Linux; Windows OCR dependencies isolated).
