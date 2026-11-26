@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { FiEdit2 } from "react-icons/fi";
+import TruncatedText from "../common/TruncatedText";
 
 export default function VaultCard({
   vault = null,
@@ -39,9 +40,11 @@ export default function VaultCard({
       <div className="flex items-start justify-between p-3.5 px-4 border-b border-[#DCE1E8] gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[1.05rem] font-bold text-[#15202C] leading-snug m-0 truncate">
-              {vaultName}
-            </h2>
+            <TruncatedText
+              as="h2"
+              text={vaultName}
+              className="font-['Bricolage_Grotesque',sans-serif] text-[1.05rem] font-bold text-[#15202C] leading-snug m-0 truncate max-w-full"
+            />
             {isActive === false && (
               <span className="text-[0.66rem] font-semibold text-[#7A8696] bg-[#EDF1F5] px-1.5 py-0.5 rounded border border-[#DCE1E8]">
                 Inactive
@@ -53,9 +56,11 @@ export default function VaultCard({
               </span>
             )}
           </div>
-          <span className="text-[#5A6777] text-[0.78rem] block mt-0.5 truncate" title={vaultDesc}>
-            {vaultDesc}
-          </span>
+          <TruncatedText
+            as="span"
+            text={vaultDesc}
+            className="text-[#5A6777] text-[0.78rem] block mt-0.5 truncate"
+          />
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
@@ -96,13 +101,17 @@ export default function VaultCard({
               onClick={() => onJobClick?.(job)}
               className="border border-[#DCE1E8] rounded-[6px] p-2.5 px-3 bg-white hover:bg-[#F6F7F9] hover:border-[#5A6777] transition-all flex items-center justify-between text-left cursor-pointer w-full group select-none"
             >
-              <span className="min-w-0 pr-2">
-                <b className="font-semibold text-[0.85rem] text-[#15202C] block leading-tight truncate">
-                  {job.title}
-                </b>
-                <span className="text-[0.78rem] text-[#5A6777] block mt-0.5 truncate">
-                  {job.company} · {job.location}
-                </span>
+              <span className="min-w-0 flex-1 pr-2">
+                <TruncatedText
+                  as="b"
+                  text={job.title}
+                  className="font-semibold text-[0.85rem] text-[#15202C] block leading-tight truncate"
+                />
+                <TruncatedText
+                  as="span"
+                  text={`${job.company} · ${job.location}`}
+                  className="text-[0.78rem] text-[#5A6777] block mt-0.5 truncate"
+                />
               </span>
               <span className="font-['IBM_Plex_Mono',monospace] text-[0.78rem] text-[#5A6777] shrink-0 text-right">
                 {job.experience}

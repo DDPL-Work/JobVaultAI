@@ -3,6 +3,7 @@ import { SOURCE_COLORS } from "../jobs/jobsData";
 import { API_BASE_URL } from "../../apis/apiClient";
 import SafeImage from "../common/SafeImage";
 import ConfidenceMeter from "../common/ConfidenceMeter";
+import TruncatedText from "../common/TruncatedText";
 
 export default function ReviewCard({
   job,
@@ -108,9 +109,11 @@ export default function ReviewCard({
               onChange={(e) => handleChange("title", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
-            <span className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate">
-              {job.evidence?.title ? `from image: “${job.evidence.title}”` : ""}
-            </span>
+            <TruncatedText
+              as="span"
+              text={job.evidence?.title ? `from image: “${job.evidence.title}”` : ""}
+              className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate"
+            />
           </div>
 
           {/* 2. Company */}
@@ -134,17 +137,19 @@ export default function ReviewCard({
                   : "border border-[#DCE1E8] bg-white focus:border-[#9C6B12]"
               }`}
             />
-            <span
+            <TruncatedText
+              as="span"
+              text={
+                isFlagged("company")
+                  ? "not found in the image text"
+                  : job.evidence?.company
+                  ? `from image: “${job.evidence.company}”`
+                  : ""
+              }
               className={`text-[0.72rem] font-['IBM_Plex_Mono',monospace] truncate ${
                 isFlagged("company") ? "text-[#9A5B00]" : "text-[#5A6777]"
               }`}
-            >
-              {isFlagged("company")
-                ? "not found in the image text"
-                : job.evidence?.company
-                ? `from image: “${job.evidence.company}”`
-                : ""}
-            </span>
+            />
           </div>
 
           {/* 3. Location */}
@@ -168,17 +173,19 @@ export default function ReviewCard({
                   : "border border-[#DCE1E8] bg-white focus:border-[#9C6B12]"
               }`}
             />
-            <span
+            <TruncatedText
+              as="span"
+              text={
+                isFlagged("location")
+                  ? "not found in the image text"
+                  : job.evidence?.location
+                  ? `from image: “${job.evidence.location}”`
+                  : ""
+              }
               className={`text-[0.72rem] font-['IBM_Plex_Mono',monospace] truncate ${
                 isFlagged("location") ? "text-[#9A5B00]" : "text-[#5A6777]"
               }`}
-            >
-              {isFlagged("location")
-                ? "not found in the image text"
-                : job.evidence?.location
-                ? `from image: “${job.evidence.location}”`
-                : ""}
-            </span>
+            />
           </div>
 
           {/* 4. Experience (years) min - to - max */}
@@ -216,17 +223,19 @@ export default function ReviewCard({
                 }`}
               />
             </div>
-            <span
+            <TruncatedText
+              as="span"
+              text={
+                isFlagged("exp_min")
+                  ? "not found in the image text"
+                  : job.evidence?.exp
+                  ? `from image: “${job.evidence.exp}”`
+                  : ""
+              }
               className={`text-[0.72rem] font-['IBM_Plex_Mono',monospace] truncate ${
                 isFlagged("exp_min") ? "text-[#9A5B00]" : "text-[#5A6777]"
               }`}
-            >
-              {isFlagged("exp_min")
-                ? "not found in the image text"
-                : job.evidence?.exp
-                ? `from image: “${job.evidence.exp}”`
-                : ""}
-            </span>
+            />
           </div>
 
           {/* 5. Salary / CTC */}
@@ -240,9 +249,11 @@ export default function ReviewCard({
               onChange={(e) => handleChange("salary", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
-            <span className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate">
-              {job.evidence?.salary ? `from image: “${job.evidence.salary}”` : ""}
-            </span>
+            <TruncatedText
+              as="span"
+              text={job.evidence?.salary ? `from image: “${job.evidence.salary}”` : ""}
+              className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate"
+            />
           </div>
 
           {/* 6. Work mode */}
@@ -287,11 +298,15 @@ export default function ReviewCard({
               onChange={(e) => handleChange("apply_contact", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
-            <span className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate">
-              {job.evidence?.apply_contact
-                ? `from image: “${job.evidence.apply_contact}”`
-                : ""}
-            </span>
+            <TruncatedText
+              as="span"
+              text={
+                job.evidence?.apply_contact
+                  ? `from image: “${job.evidence.apply_contact}”`
+                  : ""
+              }
+              className="text-[0.72rem] text-[#5A6777] font-['IBM_Plex_Mono',monospace] truncate"
+            />
           </div>
         </div>
 

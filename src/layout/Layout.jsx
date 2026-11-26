@@ -172,7 +172,7 @@ export default function Layout() {
           </button>
         </header>
 
-        <main className="min-w-0 w-full flex-1 pt-4 pb-5 px-3 sm:px-4 transition-all duration-300">
+        <main className="min-w-0 w-full flex-1 pt-4 pb-5 px-3 sm:px-6 transition-all duration-300">
           <div className="w-full min-w-0 flex flex-col gap-5">
             <Outlet />
           </div>

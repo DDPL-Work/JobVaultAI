@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import ErrorFallback from "../components/common/ErrorFallback";
+import TruncatedText from "../components/common/TruncatedText";
 import {
   DashboardKpiSkeleton,
   DashboardTableSkeleton,
@@ -146,6 +147,57 @@ export default function Dashboard() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
   const [barsReady, setBarsReady] = useState(false);
+  const [recentScrollState, setRecentScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
+  const recentJobsScrollRef = useRef(null);
+
+  const syncRecentScrollState = useCallback(() => {
+    const el = recentJobsScrollRef.current;
+    if (!el) {
+      setRecentScrollState({ canScrollLeft: false, canScrollRight: false });
+      return;
+    }
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    setRecentScrollState({
+      canScrollLeft: el.scrollLeft > 2,
+      canScrollRight: maxScrollLeft > 2 && el.scrollLeft < maxScrollLeft - 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    syncRecentScrollState();
+    const el = recentJobsScrollRef.current;
+    if (!el) return;
+
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        syncRecentScrollState();
+      });
+      observer.observe(el);
+      if (el.firstElementChild) {
+        observer.observe(el.firstElementChild);
+      }
+    }
+    window.addEventListener("resize", syncRecentScrollState);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", syncRecentScrollState);
+    };
+  }, [syncRecentScrollState, recentJobs, loadingJobs]);
+
+  const handleScrollRecentJobs = (direction) => {
+    const el = recentJobsScrollRef.current;
+    if (!el) return;
+    const step = Math.max(220, Math.round(el.clientWidth * 0.45));
+    el.scrollBy({
+      left: direction === "left" ? -step : step,
+      behavior: "smooth",
+    });
+  };
 
   const handleRetryDashboard = () => {
     dispatch(fetchDashboardStats());
@@ -365,19 +417,79 @@ export default function Dashboard() {
             <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[1.08rem] font-bold text-[#15202C] tracking-[-0.01em] m-0">
               Latest jobs
             </h2>
-            <Link
-              to="/jobs"
-              className="text-[#15202C] hover:border-[#5A6777] border border-[#DCE1E8] rounded-[6px] px-2.5 py-1 text-[0.78rem] font-semibold transition-colors"
-            >
-              Open job sheet
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                to="/jobs"
+                className="text-[#15202C] hover:border-[#5A6777] border border-[#DCE1E8] rounded-[6px] px-2.5 py-1 text-[0.78rem] font-semibold transition-colors whitespace-nowrap"
+              >
+                Open job sheet
+              </Link>
+              <div
+                className="inline-flex items-center shrink-0 border border-[#DCE1E8] rounded-[6px] bg-white overflow-hidden"
+                role="group"
+                aria-label="Scroll latest jobs horizontally"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleScrollRecentJobs("left")}
+                  disabled={!recentScrollState.canScrollLeft}
+                  aria-label="Scroll latest jobs left"
+                  title="Scroll list left"
+                  className={`w-7 h-[29px] flex items-center justify-center border-r border-[#DCE1E8] transition-colors ${
+                    recentScrollState.canScrollLeft
+                      ? "text-[#15202C] bg-white hover:bg-[#F6F7F9] cursor-pointer"
+                      : "text-[#B0BAC5] bg-[#F8FAFC] cursor-not-allowed"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.2]"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 18l-6-6 6-6"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScrollRecentJobs("right")}
+                  disabled={!recentScrollState.canScrollRight}
+                  aria-label="Scroll latest jobs right"
+                  title="Scroll list right"
+                  className={`w-7 h-[29px] flex items-center justify-center transition-colors ${
+                    recentScrollState.canScrollRight
+                      ? "text-[#15202C] bg-white hover:bg-[#F6F7F9] cursor-pointer"
+                      : "text-[#B0BAC5] bg-[#F8FAFC] cursor-not-allowed"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.2]"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 18l6-6-6-6"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           {loadingJobs && recentJobs.length === 0 ? (
             <DashboardTableSkeleton rows={6} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[0.84rem]">
+            <div
+              ref={recentJobsScrollRef}
+              onScroll={syncRecentScrollState}
+              className="w-full overflow-x-auto"
+            >
+              <table className="w-full min-w-[650px] border-collapse text-[0.84rem]">
                 <thead>
                   <tr className="bg-[#F6F7F9]">
                     <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
@@ -396,45 +508,54 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {recentJobs.length > 0 ? (
-                    recentJobs.map((job) => (
-                      <tr
-                        key={job.id}
-                        onClick={() => setSelectedJob(job)}
-                        className="hover:bg-[#F6F7F9] transition-colors duration-300 ease-out cursor-pointer"
-                      >
-                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                          <b className="font-semibold block text-[#15202C]">{job.title}</b>
-                          <span className="text-[0.78rem] text-[#5A6777]">
-                            {job.company} · {job.location}
-                          </span>
-                        </td>
-                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {getJobVaults(job).map((v) => {
-                              const isRemote = v.toLowerCase().includes("remote");
-                              return (
-                                <span
-                                  key={v}
-                                  className={`text-[0.74rem] font-semibold border rounded-[4px] px-[7px] py-[1px] whitespace-nowrap ${
-                                    isRemote
-                                      ? "border-[#B5D4F4] bg-[#EAF2FB] text-[#1E568B]"
-                                      : "border-[#DCE1E8] bg-[#F6F7F9] text-[#15202C]"
-                                  }`}
-                                >
-                                  {v}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                          <SourceTag source={job.source_app || job.source} />
-                        </td>
-                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                          <StatusPill status={job.status} />
-                        </td>
-                      </tr>
-                    ))
+                    recentJobs.map((job) => {
+                      const companyLocation = [job.company, job.location]
+                        .map((part) => (typeof part === "string" ? part.trim() : ""))
+                        .filter((part) => part && part !== "—")
+                        .join(" · ");
+
+                      return (
+                        <tr
+                          key={job.id}
+                          onClick={() => setSelectedJob(job)}
+                          className="hover:bg-[#F6F7F9] transition-colors duration-300 ease-out cursor-pointer"
+                        >
+                          <td className="p-[10px_12px] border-b border-[#DCE1E8] align-middle whitespace-nowrap">
+                            <b className="font-semibold block text-[#15202C] leading-snug whitespace-nowrap">
+                              {job.title || "—"}
+                            </b>
+                            <span className="block text-[0.78rem] text-[#5A6777] mt-0.5 leading-snug whitespace-nowrap">
+                              {companyLocation || "—"}
+                            </span>
+                          </td>
+                          <td className="p-[10px_12px] border-b border-[#DCE1E8]">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {getJobVaults(job).map((v) => {
+                                const isRemote = v.toLowerCase().includes("remote");
+                                return (
+                                  <span
+                                    key={v}
+                                    className={`text-[0.74rem] font-semibold border rounded-[4px] px-[7px] py-[1px] whitespace-nowrap ${
+                                      isRemote
+                                        ? "border-[#B5D4F4] bg-[#EAF2FB] text-[#1E568B]"
+                                        : "border-[#DCE1E8] bg-[#F6F7F9] text-[#15202C]"
+                                    }`}
+                                  >
+                                    {v}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="p-[10px_12px] border-b border-[#DCE1E8] align-middle whitespace-nowrap">
+                            <SourceTag source={job.source_app || job.source} />
+                          </td>
+                          <td className="p-[10px_12px] border-b border-[#DCE1E8] align-middle whitespace-nowrap">
+                            <StatusPill status={job.status} />
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td
@@ -478,7 +599,11 @@ export default function Dashboard() {
                         key={vaultName}
                         className="grid grid-cols-[140px_minmax(0,1fr)_36px] max-[620px]:grid-cols-[110px_minmax(0,1fr)_30px] gap-2.5 items-center text-[0.84rem] py-1 px-1.5 -mx-1.5 rounded-[6px] hover:bg-[#F6F7F9] transition-colors duration-300 ease-out"
                       >
-                        <span className="truncate text-[#15202C]">{vaultName}</span>
+                        <TruncatedText
+                          as="span"
+                          text={vaultName}
+                          className="truncate text-[#15202C]"
+                        />
                         <div className="h-[10px] rounded-[5px] bg-[#F6F7F9] overflow-hidden border border-[#DCE1E8]">
                           <div
                             className="h-full bg-[#9C6B12] rounded-[5px] min-w-[2px] transition-[width] duration-[1000ms] ease-[cubic-bezier(0.22,1,0.36,1)]"

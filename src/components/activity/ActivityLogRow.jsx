@@ -1,4 +1,5 @@
 import React from "react";
+import TruncatedText from "../common/TruncatedText";
 
 export default function ActivityLogRow({ item, isLast = false }) {
   return (
@@ -10,9 +11,11 @@ export default function ActivityLogRow({ item, isLast = false }) {
       <span className="font-mono text-[#5A6777] text-[0.78rem] whitespace-nowrap">
         {item.at}
       </span>
-      <b className="font-['Instrument_Sans',sans-serif] font-bold text-[#15202C] truncate">
-        {item.actor}
-      </b>
+      <TruncatedText
+        as="b"
+        text={item.actor}
+        className="font-['Instrument_Sans',sans-serif] font-bold text-[#15202C] truncate"
+      />
       <span className="text-[#15202C] leading-normal break-words">
         {item.message}
       </span>
