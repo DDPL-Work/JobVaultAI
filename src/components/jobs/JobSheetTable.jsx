@@ -149,8 +149,10 @@ export default function JobSheetTable({
                 </td>
 
                 {/* Salary */}
-                <td className="py-2.5 px-3 text-[#15202C] whitespace-nowrap">
-                  {job.salary || "—"}
+                <td className="py-2.5 px-3 text-[#15202C] align-middle">
+                  <div className="max-w-[155px] whitespace-normal break-words leading-snug">
+                    {job.salary || "—"}
+                  </div>
                 </td>
 
                 {/* Vault (Supports Cross-Vault Dual-Routing Multi-Badges) */}

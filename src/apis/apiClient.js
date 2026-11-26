@@ -35,13 +35,13 @@ export function setAuthSession({ access, refresh, user }) {
   if (refresh) sessionStorage.setItem(TOKEN_KEYS.REFRESH, refresh);
   if (user) sessionStorage.setItem(TOKEN_KEYS.USER, JSON.stringify(user));
 
-  // Ensure legacy localStorage auth keys are cleaned up
+  // Ensure legacy sessionStorage auth keys are cleaned up
   try {
-    localStorage.removeItem(TOKEN_KEYS.ACCESS);
-    localStorage.removeItem(TOKEN_KEYS.REFRESH);
-    localStorage.removeItem(TOKEN_KEYS.USER);
-    localStorage.removeItem("jobvault_auth");
-    localStorage.removeItem("jv_token");
+    sessionStorage.removeItem(TOKEN_KEYS.ACCESS);
+    sessionStorage.removeItem(TOKEN_KEYS.REFRESH);
+    sessionStorage.removeItem(TOKEN_KEYS.USER);
+    sessionStorage.removeItem("jobvault_auth");
+    sessionStorage.removeItem("jv_token");
   } catch {
     // ignore
   }
@@ -55,11 +55,11 @@ export function clearAuthSession() {
   sessionStorage.removeItem("jv_token");
 
   try {
-    localStorage.removeItem(TOKEN_KEYS.ACCESS);
-    localStorage.removeItem(TOKEN_KEYS.REFRESH);
-    localStorage.removeItem(TOKEN_KEYS.USER);
-    localStorage.removeItem("jobvault_auth");
-    localStorage.removeItem("jv_token");
+    sessionStorage.removeItem(TOKEN_KEYS.ACCESS);
+    sessionStorage.removeItem(TOKEN_KEYS.REFRESH);
+    sessionStorage.removeItem(TOKEN_KEYS.USER);
+    sessionStorage.removeItem("jobvault_auth");
+    sessionStorage.removeItem("jv_token");
   } catch {
     // ignore
   }

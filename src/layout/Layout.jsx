@@ -20,7 +20,7 @@ export default function Layout() {
   }, [dispatch]);
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem("jobvault_sidebar_collapsed") === "true";
+      return sessionStorage.getItem("jobvault_sidebar_collapsed") === "true";
     } catch {
       return false;
     }
@@ -28,7 +28,7 @@ export default function Layout() {
 
   const [theme, setTheme] = useState(() => {
     try {
-      return localStorage.getItem("jobvault_theme") || "light";
+      return sessionStorage.getItem("jobvault_theme") || "light";
     } catch {
       return "light";
     }
@@ -39,7 +39,7 @@ export default function Layout() {
     document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.setAttribute("data-theme", theme);
     try {
-      localStorage.setItem("jobvault_theme", theme);
+      sessionStorage.setItem("jobvault_theme", theme);
     } catch {
       // ignore
     }
@@ -49,7 +49,7 @@ export default function Layout() {
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("jobvault_sidebar_collapsed", String(next));
+        sessionStorage.setItem("jobvault_sidebar_collapsed", String(next));
       } catch {
         // ignore
       }

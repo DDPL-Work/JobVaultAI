@@ -310,8 +310,8 @@ function SidebarFooter({
     try {
       sessionStorage.removeItem("jv_token");
       sessionStorage.removeItem("jobvault_auth");
-      localStorage.removeItem("jv_token");
-      localStorage.removeItem("jobvault_auth");
+      sessionStorage.removeItem("jv_token");
+      sessionStorage.removeItem("jobvault_auth");
       sessionStorage.setItem("jv_signed_out", "true");
     } catch {
       // ignore
