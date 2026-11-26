@@ -20,7 +20,7 @@ export default function JobSheetPagination({
   }
 
   return (
-    <div className="border-t border-[#DCE1E8] px-4 py-3 flex items-center justify-between flex-wrap gap-3 bg-white text-[0.84rem] select-none">
+    <div className="border-t border-[#DCE1E8] px-3 sm:px-4 py-3 flex items-center justify-between flex-wrap gap-3 bg-white text-[0.84rem] select-none w-full min-w-0">
       {/* Left: Summary and Page Size Select */}
       <div className="flex items-center gap-3 text-[#5A6777] text-[0.8rem] flex-wrap">
         <span>
@@ -60,7 +60,7 @@ export default function JobSheetPagination({
       </div>
 
       {/* Right: Navigation Controls */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {/* Previous Button */}
         <button
           type="button"

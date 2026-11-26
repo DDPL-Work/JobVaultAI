@@ -231,25 +231,25 @@ export default function JobSheet() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="w-full min-w-0 flex flex-col gap-4 sm:gap-5">
       {/* Page Header */}
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="flex-1 min-w-[260px]">
-          <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.45rem] sm:text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
             Job sheet
           </h1>
-          <p className="mt-1 text-[#5A6777] max-w-[65ch] text-[0.875rem] leading-normal m-0">
+          <p className="mt-1 text-[#5A6777] max-w-[65ch] text-[0.84rem] sm:text-[0.875rem] leading-normal m-0">
             Every job that was read from your screenshots. Click a row to see the screenshot and where each value came from.
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-2.5 flex-wrap shrink-0 ml-auto">
+        <div className="w-full sm:w-auto flex items-center justify-start sm:justify-end gap-2 sm:gap-2.5 flex-wrap sm:shrink-0 sm:ml-auto">
           {/* Copy for Excel */}
           <button
             type="button"
             onClick={handleCopyForExcel}
-            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-2.5 sm:px-3.5 py-1.5 text-[0.78rem] sm:text-[0.85rem] font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer whitespace-nowrap"
           >
             <svg
               viewBox="0 0 24 24"
@@ -266,7 +266,7 @@ export default function JobSheet() {
             type="button"
             disabled={exportingCsv}
             onClick={handleDownloadCsv}
-            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-2.5 sm:px-3.5 py-1.5 text-[0.78rem] sm:text-[0.85rem] font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             <svg
               viewBox="0 0 24 24"
@@ -282,7 +282,7 @@ export default function JobSheet() {
             type="button"
             disabled={exportingExcel}
             onClick={handleDownloadExcel}
-            className="border border-[#9C6B12] bg-[#9C6B12] hover:brightness-105 text-white rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            className="border border-[#9C6B12] bg-[#9C6B12] hover:brightness-105 text-white rounded-[6px] px-2.5 sm:px-3.5 py-1.5 text-[0.78rem] sm:text-[0.85rem] font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50 whitespace-nowrap"
           >
             <svg
               viewBox="0 0 24 24"
@@ -307,7 +307,7 @@ export default function JobSheet() {
       )}
 
       {/* Main Table Panel */}
-      <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
+      <div className="w-full min-w-0 bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
         {/* Toolbar */}
         <JobSheetToolbar
           searchQuery={searchQuery}

@@ -33,6 +33,7 @@ export default function App() {
         position="top-right"
         autoClose={2000}
         limit={3}
+        icon={false}
         hideProgressBar={false}
         newestOnTop
         closeOnClick

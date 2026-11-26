@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { SOURCE_COLORS } from "../jobs/jobsData";
 import { API_BASE_URL } from "../../apis/apiClient";
 import SafeImage from "../common/SafeImage";
+import ConfidenceMeter from "../common/ConfidenceMeter";
 
 export default function ReviewCard({
   job,
@@ -37,15 +38,6 @@ export default function ReviewCard({
           .join(", ")} unclear`
       : "Needs review");
 
-  const getConfidenceInfo = (conf) => {
-    const p = Math.round((conf || 0) * 100);
-    let colorClass = "bg-[#24734A]";
-    if (p < 60) colorClass = "bg-[#A8281F]";
-    else if (p < 80) colorClass = "bg-[#9A5B00]";
-    return { p, colorClass };
-  };
-
-  const { p: confPercent, colorClass: confBg } = getConfidenceInfo(job.confidence);
   const sourceColor = SOURCE_COLORS[job.source_app] || SOURCE_COLORS.Other;
 
   return (
@@ -89,18 +81,11 @@ export default function ReviewCard({
               />
               {job.source_app}
             </span>
-            <span
-              className="inline-flex items-center gap-1.5 font-['IBM_Plex_Mono',monospace] text-[0.78rem] text-[#15202C]"
-              title={`Confidence: ${confPercent}%`}
-            >
-              <span className="w-[38px] h-[5px] rounded-[3px] bg-[#F6F7F9] border border-[#DCE1E8] overflow-hidden inline-block shrink-0">
-                <i
-                  className={`h-full block rounded-[2px] ${confBg}`}
-                  style={{ width: `${confPercent}%` }}
-                />
-              </span>
-              <span>{confPercent}%</span>
-            </span>
+            <ConfidenceMeter
+              confidence={job.confidence}
+              animKey={job.id}
+              titlePrefix="Confidence"
+            />
           </div>
 
           {/* Status Badge */}

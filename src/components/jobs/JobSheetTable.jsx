@@ -1,5 +1,6 @@
 import { SOURCE_COLORS, getJobVaults } from "./jobsData";
 import { JobSheetTableSkeleton } from "../common/LoadingSkeletons";
+import ConfidenceMeter from "../common/ConfidenceMeter";
 
 export default function JobSheetTable({
   jobs = [],
@@ -46,14 +47,6 @@ export default function JobSheetTable({
     }
   };
 
-  const getConfidenceInfo = (conf) => {
-    const p = Math.round((conf || 0) * 100);
-    let colorClass = "bg-[#24734A]";
-    if (p < 60) colorClass = "bg-[#A8281F]";
-    else if (p < 80) colorClass = "bg-[#9A5B00]";
-    return { p, colorClass };
-  };
-
   if (loading) {
     return <JobSheetTableSkeleton rows={8} />;
   }
@@ -70,7 +63,7 @@ export default function JobSheetTable({
   }
 
   return (
-    <div className="overflow-x-auto select-none">
+    <div className="w-full overflow-x-auto select-none">
       <table className="w-full min-w-[960px] border-collapse text-[0.84rem] text-left">
         <thead>
           <tr className="bg-[#F6F7F9] border-b border-[#DCE1E8]">
@@ -86,7 +79,7 @@ export default function JobSheetTable({
             <th className="py-2.5 px-3 text-[0.7rem] uppercase tracking-[0.07em] font-semibold text-[#5A6777] whitespace-nowrap">
               Experience
             </th>
-            <th className="py-2.5 px-3 text-[0.7rem] uppercase tracking-[0.07em] font-semibold text-[#5A6777] whitespace-nowrap">
+            <th className="py-2.5 px-10 text-[0.7rem] uppercase tracking-[0.07em] font-semibold text-[#5A6777] whitespace-nowrap">
               Salary
             </th>
             <th className="py-2.5 px-3 text-[0.7rem] uppercase tracking-[0.07em] font-semibold text-[#5A6777] whitespace-nowrap">
@@ -104,11 +97,8 @@ export default function JobSheetTable({
           </tr>
         </thead>
         <tbody>
-          {jobs.map((job) => {
+          {jobs.map((job, idx) => {
             const pill = getStatusPill(job.status);
-            const { p: confPercent, colorClass: confBg } = getConfidenceInfo(
-              job.confidence
-            );
             const sourceColor =
               SOURCE_COLORS[job.source_app] || SOURCE_COLORS.Other;
 
@@ -195,18 +185,11 @@ export default function JobSheetTable({
 
                 {/* Confidence */}
                 <td className="py-2.5 px-3 whitespace-nowrap">
-                  <span
-                    className="inline-flex items-center gap-1.5 font-['IBM_Plex_Mono',monospace] text-[0.78rem] text-[#15202C]"
-                    title={`AI Confidence: ${confPercent}%`}
-                  >
-                    <span className="w-[38px] h-[5px] rounded-[3px] bg-[#F6F7F9] border border-[#DCE1E8] overflow-hidden inline-block shrink-0">
-                      <i
-                        className={`h-full block rounded-[2px] ${confBg}`}
-                        style={{ width: `${confPercent}%` }}
-                      />
-                    </span>
-                    <span>{confPercent}%</span>
-                  </span>
+                  <ConfidenceMeter
+                    confidence={job.confidence}
+                    delayMs={idx * 45}
+                    animKey={job.id}
+                  />
                 </td>
 
                 {/* Status */}

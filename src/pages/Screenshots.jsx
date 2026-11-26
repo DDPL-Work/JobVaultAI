@@ -230,13 +230,13 @@ export default function Screenshots() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="w-full min-w-0 flex flex-col gap-4 sm:gap-5">
       {/* Page Header */}
-      <div>
-        <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
+      <div className="min-w-0">
+        <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.45rem] sm:text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
           Screenshots
         </h1>
-        <p className="mt-1 text-[#5A6777] max-w-[70ch] text-[0.875rem] leading-normal m-0">
+        <p className="mt-1 text-[#5A6777] max-w-[70ch] text-[0.84rem] sm:text-[0.875rem] leading-normal m-0">
           Add as many screenshots as you like. Each one is read on its own, so there is no 10–20 image limit and no need to make PDFs.
         </p>
       </div>
