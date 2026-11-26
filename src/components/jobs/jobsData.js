@@ -22,14 +22,193 @@ export const SOURCE_COLORS = {
   LinkedIn: "#0A66C2",
   Telegram: "#2A86C9",
   Instagram: "#D6336C",
+  PDF: "#DC2626",
   Other: "#7A8696",
 };
 
-// 14 Jobs corresponding exactly to the reference images
+/**
+ * Returns the client-standard vault prefix according to specification:
+ * C-: Early Career (0–2 yrs, Freshers)
+ * M-: Management (2–10 yrs, Junior & Mid-level)
+ * L-: Leadership (10–15 yrs, Senior)
+ * E-: Executive (15+ yrs, CXO, VP)
+ * R-: Remote (Remote, Anywhere)
+ * G-: UAE & Global (International)
+ */
+export function getVaultPrefix(vault = "") {
+  const v = (vault || "").toLowerCase();
+  if (v.includes("remote")) return "R";
+  if (v.includes("global") || v.includes("uae")) return "G";
+  if (v.includes("senior") || v.includes("leadership")) return "L";
+  if (v.includes("executive") || v.includes("cxo") || v.includes("director")) return "E";
+  if (v.includes("junior") || v.includes("mid-level") || v.includes("management")) return "M";
+  if (v.includes("fresher") || v.includes("early career") || v.includes("intern")) return "C";
+  return "C";
+}
+
+/**
+ * Generates a client-standard formatted Job ID: [Prefix]-[DDMMYY]-[NN]
+ * e.g., C-161126-01, R-191126-01, M-211126-02
+ */
+export function formatClientJobId(vault = "India · Fresher", dateInput = new Date(), sequence = 1) {
+  const prefix = getVaultPrefix(vault);
+  let d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) d = new Date();
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  const seqStr = String(sequence).padStart(2, "0");
+
+  return `${prefix}-${dd}${mm}${yy}-${seqStr}`;
+}
+
+/**
+ * Cross-Vault Dual-Routing Engine:
+ * When a job is marked as Remote, it is routed to "Remote" AND placed into the matching experience tier.
+ * Returns an array of vault names: e.g. ["Remote", "India · Fresher"] or ["India · Junior"]
+ */
+export function getJobVaults(job) {
+  if (!job) return ["India · Fresher"];
+  if (Array.isArray(job.vaults) && job.vaults.length > 0) {
+    return job.vaults;
+  }
+
+  const v = (job.vault || "").toLowerCase();
+  const mode = (job.work_mode || "").toLowerCase();
+  const loc = (job.location || "").toLowerCase();
+  const exp = (job.experience || "").toLowerCase();
+  const expMin = job.exp_min != null && job.exp_min !== "" ? Number(job.exp_min) : null;
+  const country = (job.country || "").toLowerCase();
+
+  const isRemote =
+    v.includes("remote") ||
+    mode.includes("remote") ||
+    loc.includes("remote") ||
+    loc.includes("wfh");
+
+  const isGlobal =
+    (v.includes("global") ||
+      v.includes("uae") ||
+      loc.includes("dubai") ||
+      loc.includes("uae") ||
+      (country && country !== "india")) &&
+    !isRemote;
+
+  if (isGlobal) {
+    return ["Global"];
+  }
+
+  // Determine experience tier
+  let expTier = "India · Fresher";
+  if (expMin != null && !isNaN(expMin)) {
+    if (expMin < 2) expTier = "India · Fresher";
+    else if (expMin < 5) expTier = "India · Junior";
+    else if (expMin < 10) expTier = "India · Mid-level";
+    else expTier = "India · Senior";
+  } else {
+    if (
+      exp.includes("fresher") ||
+      exp.includes("0") ||
+      exp.includes("1 yr") ||
+      exp.includes("1–2") ||
+      exp.includes("intern")
+    ) {
+      expTier = "India · Fresher";
+    } else if (
+      exp.includes("2") ||
+      exp.includes("3") ||
+      exp.includes("4") ||
+      exp.includes("1-3")
+    ) {
+      expTier = "India · Junior";
+    } else if (
+      exp.includes("5") ||
+      exp.includes("6") ||
+      exp.includes("7") ||
+      exp.includes("4–6")
+    ) {
+      expTier = "India · Mid-level";
+    } else if (
+      exp.includes("8") ||
+      exp.includes("10") ||
+      exp.includes("12") ||
+      exp.includes("+")
+    ) {
+      expTier = "India · Senior";
+    } else if (v.includes("senior") || v.includes("leadership")) {
+      expTier = "India · Senior";
+    } else if (v.includes("mid-level") || v.includes("management")) {
+      expTier = "India · Mid-level";
+    } else if (v.includes("junior")) {
+      expTier = "India · Junior";
+    }
+  }
+
+  if (isRemote) {
+    // Cross-Vault Dual-Routing: Routes to Remote AND matching Experience Tier!
+    return ["Remote", expTier];
+  }
+
+  return [job.vault || expTier];
+}
+
+/**
+ * Computes Dual-Routing Matrix for rules testing:
+ * If Remote, returns [remoteVault, matchedExperienceTier].
+ * If international, returns [globalVault].
+ * Otherwise, returns [matchedExperienceTier].
+ */
+export function computeDualVaults({
+  country = "India",
+  workMode = "Onsite",
+  expMin = "0",
+  tiers = [],
+  remoteVault = "Remote",
+  globalVault = "Global",
+  homeCountry = "India",
+}) {
+  const isRemote = (workMode || "").trim().toLowerCase() === "remote";
+  const c = (country || "").trim().toLowerCase();
+  const hc = (homeCountry || "").trim().toLowerCase();
+  const isGlobal = c && hc && c !== hc && !isRemote;
+
+  if (isGlobal) {
+    return [globalVault || "Global"];
+  }
+
+  // Calculate experience tier
+  const numExp = parseFloat(expMin);
+  let matchedTier = tiers[0]?.name || "India · Fresher";
+
+  if (!isNaN(numExp) && tiers.length > 0) {
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      if (t.below == null || t.below === "") {
+        matchedTier = t.name;
+        break;
+      }
+      if (numExp < parseFloat(t.below)) {
+        matchedTier = t.name;
+        break;
+      }
+    }
+  }
+
+  if (isRemote) {
+    // Automated Dual-Routing Matrix: Remote (Work Mode) + Experience Tier
+    return [remoteVault || "Remote", matchedTier];
+  }
+
+  return [matchedTier];
+}
+
+// 14 Jobs with Client-Standard Job ID Format: [Prefix]-[DDMMYY]-[NN]
 export const INITIAL_JOBS = [
   {
     id: 1054,
-    code: "JV-1054",
+    code: "C-161126-01",
+    job_id: "C-161126-01",
     title: "Accounts Assistant",
     company: "Doon Valley Traders",
     location: "Dehradun",
@@ -61,7 +240,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1053,
-    code: "JV-1053",
+    code: "C-151126-02",
+    job_id: "C-151126-02",
     title: "Sales Manager - B2B",
     company: "Vantage Polymers",
     location: "Noida",
@@ -92,7 +272,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1052,
-    code: "JV-1052",
+    code: "G-141126-01",
+    job_id: "G-141126-01",
     title: "Marketing Manager",
     company: "Sandline Retail",
     location: "Dubai, UAE",
@@ -124,7 +305,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1051,
-    code: "JV-1051",
+    code: "C-131126-01",
+    job_id: "C-131126-01",
     title: "Content Writer",
     company: "—",
     location: "—",
@@ -134,6 +316,7 @@ export const INITIAL_JOBS = [
     exp_max: null,
     salary: "—",
     vault: "India · Fresher",
+    vaults: ["India · Fresher", "Remote"],
     source_app: "Instagram",
     confidence: 0.36,
     status: "review", // Needs review
@@ -153,7 +336,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1050,
-    code: "JV-1050",
+    code: "M-121126-01",
+    job_id: "M-121126-01",
     title: "Machine Learning Engineer",
     company: "Aksha AI",
     location: "Hyderabad",
@@ -186,7 +370,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1049,
-    code: "JV-1049",
+    code: "C-111126-01",
+    job_id: "C-111126-01",
     title: "Operations Executive",
     company: "Tarang Foods",
     location: "Haridwar",
@@ -217,7 +402,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1048,
-    code: "JV-1048",
+    code: "M-101126-01",
+    job_id: "M-101126-01",
     title: "Senior Data Analyst",
     company: "Northwind Analytics",
     location: "Bengaluru",
@@ -231,6 +417,7 @@ export const INITIAL_JOBS = [
     confidence: 0.96,
     status: "duplicate", // Duplicate
     duplicate_of: 1041,
+    duplicate_of_code: "M-031126-01",
     original_name: "IMG-20261104-WA0177.jpg",
     created_at: "2026-11-10 04:33:00",
     work_mode: "Hybrid",
@@ -253,7 +440,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1047,
-    code: "JV-1047",
+    code: "L-091126-01",
+    job_id: "L-091126-01",
     title: "Head of Engineering",
     company: "Quickbasket",
     location: "Mumbai",
@@ -285,7 +473,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1046,
-    code: "JV-1046",
+    code: "G-081126-01",
+    job_id: "G-081126-01",
     title: "Supply Chain Lead",
     company: "Harbourline Logistics",
     location: "Singapore",
@@ -317,7 +506,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1045,
-    code: "JV-1045",
+    code: "R-071126-01",
+    job_id: "R-071126-01",
     title: "Frontend Developer (React)",
     company: "Lumen Stack",
     location: "Remote",
@@ -327,6 +517,7 @@ export const INITIAL_JOBS = [
     exp_max: 4,
     salary: "$40-55k / yr",
     vault: "Remote",
+    vaults: ["Remote", "India · Junior"],
     source_app: "Telegram",
     confidence: 0.93,
     status: "synced", // In sheet
@@ -350,7 +541,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1044,
-    code: "JV-1044",
+    code: "M-061126-01",
+    job_id: "M-061126-01",
     title: "Business Analyst",
     company: "Crestview Consulting",
     location: "Gurugram",
@@ -383,7 +575,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1043,
-    code: "JV-1043",
+    code: "C-051126-01",
+    job_id: "C-051126-01",
     title: "Customer Support Executive",
     company: "Himal BPO Services",
     location: "Dehradun",
@@ -416,7 +609,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1042,
-    code: "JV-1042",
+    code: "G-041126-01",
+    job_id: "G-041126-01",
     title: "Marketing Manager",
     company: "Sandline Retail",
     location: "Dubai, UAE",
@@ -448,7 +642,8 @@ export const INITIAL_JOBS = [
   },
   {
     id: 1041,
-    code: "JV-1041",
+    code: "M-031126-01",
+    job_id: "M-031126-01",
     title: "Senior Data Analyst",
     company: "Northwind Analytics",
     location: "Bengaluru",

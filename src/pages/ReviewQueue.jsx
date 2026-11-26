@@ -1,39 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import ReviewCard from "../components/review/ReviewCard";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
-import { INITIAL_REVIEW_JOBS } from "../components/review/reviewData";
+import ErrorFallback from "../components/common/ErrorFallback";
+import { ReviewQueueSkeleton } from "../components/common/LoadingSkeletons";
+import {
+  fetchReviewJobs,
+  approveJob,
+  rejectJob,
+} from "../apis/thunks/jobsThunks";
+import { fetchDashboardStats } from "../apis/thunks/dashboardThunks";
 
 export default function ReviewQueue() {
-  const [reviewJobs, setReviewJobs] = useState(INITIAL_REVIEW_JOBS);
+  const dispatch = useDispatch();
+  const {
+    reviewItems: reviewJobs,
+    loadingReview,
+    reviewError,
+  } = useSelector((state) => state.jobs);
+
   const [zoomImage, setZoomImage] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [submittingId, setSubmittingId] = useState(null);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 2800);
+  useEffect(() => {
+    dispatch(fetchReviewJobs());
+  }, [dispatch]);
+
+  const handleApprove = async (updatedJob) => {
+    setSubmittingId(updatedJob.id);
+    try {
+      const updates = {
+        title: updatedJob.title || "",
+        company: updatedJob.company || "",
+        location: updatedJob.location || "",
+        exp_min:
+          updatedJob.exp_min === "" || updatedJob.exp_min === null
+            ? null
+            : Number(updatedJob.exp_min),
+        exp_max:
+          updatedJob.exp_max === "" || updatedJob.exp_max === null
+            ? null
+            : Number(updatedJob.exp_max),
+        salary: updatedJob.salary || null,
+        work_mode: updatedJob.work_mode || null,
+        country: updatedJob.country || "",
+        apply_contact: updatedJob.apply_contact || "",
+      };
+      await dispatch(approveJob({ jobId: updatedJob.id, updates })).unwrap();
+      toast.success(`Approved & added to sheet (${updatedJob.code})`);
+      dispatch(fetchDashboardStats());
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to approve job"
+      );
+    } finally {
+      setSubmittingId(null);
+    }
   };
 
-  const handleApprove = (updatedJob) => {
-    setReviewJobs((prev) => prev.filter((j) => j.id !== updatedJob.id));
-    showToast(`Approved & added to sheet (${updatedJob.code})`);
-  };
-
-  const handleReject = (jobId) => {
-    setReviewJobs((prev) => prev.filter((j) => j.id !== jobId));
-    showToast("Job rejected");
+  const handleReject = async (jobId) => {
+    setSubmittingId(jobId);
+    try {
+      await dispatch(rejectJob(jobId)).unwrap();
+      toast.info("Job rejected");
+      dispatch(fetchDashboardStats());
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to reject job"
+      );
+    } finally {
+      setSubmittingId(null);
+    }
   };
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-[#15202C] text-white px-4 py-2.5 rounded-[6px] font-semibold text-[0.85rem] shadow-[0_10px_30px_rgba(21,32,44,0.2)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
-          {toastMessage}
-        </div>
-      )}
-
       {/* Page Header */}
       <div>
         <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
@@ -44,13 +88,36 @@ export default function ReviewQueue() {
         </p>
       </div>
 
+      {/* Graceful Error Banner when cached review items exist */}
+      {reviewError && reviewJobs.length > 0 && (
+        <ErrorFallback
+          compact
+          title="Could not refresh review queue"
+          message={reviewError}
+          onRetry={() => dispatch(fetchReviewJobs())}
+          retrying={loadingReview}
+        />
+      )}
+
       {/* Main Review Cards Container */}
       <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
-        {reviewJobs.length > 0 ? (
+        {loadingReview && reviewJobs.length === 0 ? (
+          <ReviewQueueSkeleton cards={2} />
+        ) : reviewError && reviewJobs.length === 0 ? (
+          <div className="p-4">
+            <ErrorFallback
+              title="Could not load review queue"
+              message={reviewError}
+              onRetry={() => dispatch(fetchReviewJobs())}
+              retrying={loadingReview}
+            />
+          </div>
+        ) : reviewJobs.length > 0 ? (
           reviewJobs.map((job) => (
             <ReviewCard
               key={job.id}
               job={job}
+              isSubmitting={submittingId === job.id}
               onApprove={handleApprove}
               onReject={handleReject}
               onZoomImage={(img) => setZoomImage(img)}
@@ -74,4 +141,3 @@ export default function ReviewQueue() {
     </div>
   );
 }
-

@@ -1,183 +1,232 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import ScreenshotUploadZone from "../components/screenshots/ScreenshotUploadZone";
 import ScreenshotList from "../components/screenshots/ScreenshotList";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
-import { INITIAL_JOBS } from "../components/jobs/jobsData";
+import ErrorFallback from "../components/common/ErrorFallback";
 import {
-  INITIAL_SCREENSHOTS,
-  shotSvg,
-  DEMO_ITEMS,
-} from "../components/screenshots/screenshotData";
+  fetchScreenshots,
+  uploadScreenshots,
+  deleteScreenshot,
+  retryScreenshot,
+  fetchScreenshotJobDetail,
+} from "../apis/thunks/screenshotsThunks";
+import { updateScreenshotJobStatus } from "../apis/slices/screenshotsSlice";
+import {
+  fetchJobs,
+  updateJob,
+  approveJob,
+  rejectJob,
+  restoreJob,
+} from "../apis/thunks/jobsThunks";
+import { fetchDashboardStats } from "../apis/thunks/dashboardThunks";
+import { localUpdateJobStatus } from "../apis/slices/jobsSlice";
 
 export default function Screenshots() {
-  const [screenshots, setScreenshots] = useState(INITIAL_SCREENSHOTS);
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const dispatch = useDispatch();
+  const {
+    items: screenshots,
+    queue,
+    loading,
+    error,
+  } = useSelector((state) => state.screenshots);
+  const { items: jobs } = useSelector((state) => state.jobs);
+
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
-  const [nextId, setNextId] = useState(1055);
 
-  // Compute active queue count
-  const runningCount = screenshots.filter(
+  // Load live screenshots and jobs on mount
+  useEffect(() => {
+    dispatch(fetchScreenshots());
+    dispatch(fetchJobs());
+  }, [dispatch]);
+
+  // Active processing count (from backend queue or active screenshot stages)
+  const activeStageCount = screenshots.filter(
     (s) => s.stage !== "saved" && s.stage !== "failed"
   ).length;
+  const runningCount = Math.max(
+    Number(queue?.running || 0) + Number(queue?.queued || 0),
+    activeStageCount
+  );
 
   const queueInfo =
     runningCount > 0
       ? `${runningCount} reading now · waiting`
       : "Queue is empty";
 
-  // Handle uploaded or dropped files
-  const handleFilesSelected = (files) => {
-    if (!files || files.length === 0) return;
+  // Poll live status every 3s only while screenshots are actively being processed
+  useEffect(() => {
+    if (runningCount === 0) return;
+    const timer = setInterval(() => {
+      dispatch(fetchScreenshots());
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [runningCount, dispatch]);
 
-    setUploadProgress(15);
+  // Upload files (images / multi-page PDFs / multi-part combine) directly to live API
+  const handleFilesSelected = useCallback(
+    async (files, isCombine = false) => {
+      if (!files || files.length === 0) return;
 
-    const now = new Date();
-    const dateFormatted = now.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    files.forEach((file, index) => {
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        const imageSrc = e.target.result;
-        const currentJobId = nextId + index;
-        const sampleDemo = DEMO_ITEMS[index % DEMO_ITEMS.length];
-
-        const newScreenshot = {
-          id: Date.now() + index,
-          filename: file.name,
-          originalName: file.name,
-          dateFormatted,
-          origin: "Uploaded",
-          sourceApp: sampleDemo.app || "WhatsApp",
-          stage: "received",
-          stageText: "Waiting in queue",
-          image: imageSrc || shotSvg(sampleDemo.app, sampleDemo.text),
-          jobs: [
-            {
-              id: currentJobId,
-              code: `JV-${currentJobId}`,
-              status: sampleDemo.status || "synced",
-              statusLabel:
-                sampleDemo.status === "review"
-                  ? "Needs review"
-                  : sampleDemo.status === "duplicate"
-                  ? "Duplicate"
-                  : "In sheet",
-            },
-          ],
-        };
-
-        // Add to top of list
-        setScreenshots((prev) => [newScreenshot, ...prev]);
-
-        // Simulate AI Pipeline stages
-        setTimeout(() => {
-          setUploadProgress(45);
-          updateScreenshotStage(newScreenshot.id, "reading", "AI is reading the image");
-        }, 600);
-
-        setTimeout(() => {
-          setUploadProgress(75);
-          updateScreenshotStage(
-            newScreenshot.id,
-            "verifying",
-            "Checking every value against the text"
-          );
-        }, 1300);
-
-        setTimeout(() => {
-          setUploadProgress(95);
-          updateScreenshotStage(
-            newScreenshot.id,
-            "sorting",
-            "Skipping duplicates, sorting to vault"
-          );
-        }, 2000);
-
-        setTimeout(() => {
-          setUploadProgress(null);
-          updateScreenshotStage(newScreenshot.id, "saved", "Done");
-        }, 2700);
-      };
-
-      if (file.type.startsWith("image/")) {
-        reader.readAsDataURL(file);
-      } else {
-        // Fallback for non-standard image formats
-        const sampleDemo = DEMO_ITEMS[index % DEMO_ITEMS.length];
-        const currentJobId = nextId + index;
-        const newScreenshot = {
-          id: Date.now() + index,
-          filename: file.name,
-          originalName: file.name,
-          dateFormatted,
-          origin: "Uploaded",
-          sourceApp: sampleDemo.app || "WhatsApp",
-          stage: "saved",
-          stageText: "Done",
-          image: shotSvg(sampleDemo.app, sampleDemo.text),
-          jobs: [
-            {
-              id: currentJobId,
-              code: `JV-${currentJobId}`,
-              status: sampleDemo.status || "synced",
-              statusLabel:
-                sampleDemo.status === "review"
-                  ? "Needs review"
-                  : "In sheet",
-            },
-          ],
-        };
-        setScreenshots((prev) => [newScreenshot, ...prev]);
-        setUploadProgress(null);
+      let uploadFiles = Array.from(files);
+      if (isCombine && uploadFiles.length > 4) {
+        toast.warning(
+          "Combining first 4 parts into 1 job (maximum 4 screenshot parts supported)"
+        );
+        uploadFiles = uploadFiles.slice(0, 4);
       }
-    });
 
-    setNextId((prev) => prev + files.length);
+      const hasPdf = uploadFiles.some(
+        (f) =>
+          f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+      );
+
+      if (isCombine && uploadFiles.length > 1) {
+        toast.info(
+          `Combining ${uploadFiles.length} parts into 1 single job · reading queued`
+        );
+      } else if (hasPdf) {
+        toast.info(
+          `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} uploading · PDF auto page-splitting active`
+        );
+      } else {
+        toast.info(
+          `${uploadFiles.length} screenshot${uploadFiles.length > 1 ? "s" : ""} uploading · reading queued`
+        );
+      }
+
+      setUploadProgress(25);
+
+      try {
+        setUploadProgress(65);
+        await dispatch(
+          uploadScreenshots({ files: uploadFiles, combine: isCombine })
+        ).unwrap();
+        setUploadProgress(100);
+        await dispatch(fetchScreenshots());
+        dispatch(fetchJobs());
+        toast.success(
+          `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} uploaded to queue`
+        );
+      } catch (err) {
+        const msg =
+          (typeof err === "string" ? err : err?.message) ||
+          "Failed to upload screenshots";
+        toast.error(msg);
+      } finally {
+        setTimeout(() => setUploadProgress(null), 400);
+      }
+    },
+    [dispatch]
+  );
+
+  // Delete screenshot via live API
+  const handleDeleteScreenshot = async (id) => {
+    try {
+      await dispatch(deleteScreenshot(id)).unwrap();
+      toast.success("Screenshot removed");
+    } catch (err) {
+      const msg =
+        (typeof err === "string" ? err : err?.message) ||
+        "Failed to remove screenshot";
+      toast.error(msg);
+    }
   };
 
-  const updateScreenshotStage = (id, stage, stageText) => {
-    setScreenshots((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, stage, stageText } : s))
-    );
+  // Retry failed screenshot via live API
+  const handleRetryScreenshot = async (id) => {
+    try {
+      await dispatch(retryScreenshot(id)).unwrap();
+      toast.info("Screenshot re-queued for AI reading");
+      dispatch(fetchScreenshots());
+    } catch (err) {
+      const msg =
+        (typeof err === "string" ? err : err?.message) ||
+        "Failed to retry screenshot";
+      toast.error(msg);
+    }
   };
 
-  // Delete screenshot item
-  const handleDeleteScreenshot = (id) => {
-    setScreenshots((prev) => prev.filter((s) => s.id !== id));
+  // Open job detail drawer by fetching from live backend API (or Redux cache)
+  const handleOpenJob = async (jobId) => {
+    const cached = jobs.find((j) => j.id === jobId);
+    if (cached) {
+      setSelectedJob(cached);
+    }
+    try {
+      const liveJob = await dispatch(fetchScreenshotJobDetail(jobId)).unwrap();
+      if (liveJob?.id) {
+        setSelectedJob(liveJob);
+      }
+    } catch (err) {
+      if (!cached) {
+        toast.error(
+          (typeof err === "string" ? err : err?.message) ||
+            "Could not load job details"
+        );
+      }
+    }
   };
 
-  const handleJobStatusChange = (jobId, newStatus) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
-    );
+  const handleJobStatusChange = async (jobId, newStatus) => {
+    dispatch(localUpdateJobStatus({ jobId, newStatus }));
+    dispatch(updateScreenshotJobStatus({ jobId, newStatus }));
     setSelectedJob((prev) =>
       prev && prev.id === jobId ? { ...prev, status: newStatus } : prev
     );
-    setScreenshots((prev) =>
-      prev.map((s) => ({
-        ...s,
-        jobs: s.jobs?.map((j) =>
-          j.id === jobId ? { ...j, status: newStatus } : j
-        ),
-      }))
-    );
+
+    try {
+      if (newStatus === "synced") {
+        await dispatch(approveJob(jobId)).unwrap();
+      } else if (newStatus === "rejected") {
+        await dispatch(rejectJob(jobId)).unwrap();
+      } else if (newStatus === "review") {
+        await dispatch(restoreJob(jobId)).unwrap();
+      } else {
+        await dispatch(
+          updateJob({ jobId, updates: { status: newStatus } })
+        ).unwrap();
+      }
+      toast.success(
+        newStatus === "rejected"
+          ? "Job rejected"
+          : newStatus === "review"
+          ? "Job moved to review"
+          : newStatus === "synced"
+          ? "Approved & added to sheet"
+          : "Job status updated"
+      );
+      dispatch(fetchDashboardStats());
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job status"
+      );
+      dispatch(fetchScreenshots());
+      throw err;
+    }
   };
 
-  const handleJobUpdate = (updatedJob) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
-    );
-    setSelectedJob(updatedJob);
+  const handleJobUpdate = async (updatedJob) => {
+    try {
+      const saved = await dispatch(
+        updateJob({ jobId: updatedJob.id, updates: updatedJob })
+      ).unwrap();
+      const nextJob = saved?.id ? saved : updatedJob;
+      setSelectedJob(nextJob);
+      toast.success("Job updated successfully");
+      return nextJob;
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job"
+      );
+      throw err;
+    }
   };
 
   return (
@@ -198,18 +247,28 @@ export default function Screenshots() {
         uploadingProgress={uploadProgress}
       />
 
+      {/* Graceful Error Banner if background refresh fails while cached items exist */}
+      {error && screenshots.length > 0 && (
+        <ErrorFallback
+          compact
+          title="Live sync interrupted"
+          message={error}
+          onRetry={() => dispatch(fetchScreenshots())}
+          retrying={loading}
+        />
+      )}
+
       {/* Recent Screenshots List */}
       <ScreenshotList
         items={screenshots}
+        loading={loading}
+        error={error}
         queueInfo={queueInfo}
         onZoom={(img) => setZoomImage(img)}
         onDelete={handleDeleteScreenshot}
-        onOpenJob={(jobId) => {
-          const found =
-            jobs.find((j) => j.id === jobId) ||
-            INITIAL_JOBS.find((j) => j.id === jobId);
-          if (found) setSelectedJob(found);
-        }}
+        onRetry={handleRetryScreenshot}
+        onRefresh={() => dispatch(fetchScreenshots())}
+        onOpenJob={handleOpenJob}
       />
 
       {/* Slide-over Job Detail Drawer with smooth transitions */}
@@ -219,12 +278,7 @@ export default function Screenshots() {
         onZoomImage={(img) => setZoomImage(img)}
         onStatusChange={handleJobStatusChange}
         onJobUpdate={handleJobUpdate}
-        onOpenJobId={(jobId) => {
-          const found =
-            jobs.find((j) => j.id === jobId) ||
-            INITIAL_JOBS.find((j) => j.id === jobId);
-          if (found) setSelectedJob(found);
-        }}
+        onOpenJobId={handleOpenJob}
       />
 
       {/* Lightbox Modal */}
@@ -235,4 +289,3 @@ export default function Screenshots() {
     </div>
   );
 }
-

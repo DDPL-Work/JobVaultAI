@@ -1,9 +1,11 @@
 import { STAGES, STAGE_LABEL } from "./screenshotData";
+import SafeImage from "../common/SafeImage";
 
 export default function ScreenshotItem({
   item,
   onZoom,
   onDelete,
+  onRetry,
   onOpenJob,
 }) {
   const currentStageIndex = STAGES.indexOf(item.stage);
@@ -57,36 +59,38 @@ export default function ScreenshotItem({
         onClick={() => onZoom?.(item.image || "")}
         title="Click to view full screenshot"
       >
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.originalName}
-            className="w-full h-full object-cover transition-transform hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5 stroke-[#5A6777] fill-none stroke-[1.8]"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <path d="M21 15l-5-5L5 21" />
-          </svg>
-        )}
+        <SafeImage
+          src={item.image}
+          alt={item.originalName}
+          className="w-full h-full object-cover transition-transform hover:scale-105"
+          fallbackClassName="w-full h-full"
+        />
       </div>
 
       {/* 2. File details */}
       <div className="min-w-0 flex flex-col justify-center">
         <div
-          className="font-['IBM_Plex_Mono',monospace] text-[0.76rem] font-medium text-[#15202C] truncate"
+          className="font-['IBM_Plex_Mono',monospace] text-[0.76rem] font-medium text-[#15202C] truncate flex items-center gap-1.5"
           title={item.originalName || item.filename}
         >
-          {item.originalName || item.filename}
+          <span className="truncate">{item.originalName || item.filename}</span>
+          {item.isCombined && (
+            <span className="text-[0.62rem] font-bold bg-[#FAF4E8] text-[#9C6B12] border border-[#E5D2A8] rounded-[3px] px-1.5 py-0.2 shrink-0">
+              {item.partsCount || "Multi"}-Part Combined
+            </span>
+          )}
+          {item.isPdf && (
+            <span className="text-[0.62rem] font-bold bg-[#FDF2F2] text-[#DC2626] border border-[#FCA5A5] rounded-[3px] px-1.5 py-0.2 shrink-0 flex items-center gap-1">
+              <span>PDF</span>
+              <span>Page {item.pageNumber || 1}</span>
+            </span>
+          )}
         </div>
         <div className="text-[0.75rem] text-[#5A6777] mt-0.5 truncate">
           {item.dateFormatted} · {item.origin || "Uploaded"}
           {item.sourceApp ? ` · ${item.sourceApp}` : ""}
+          {item.isCombined ? ` · ${item.partsCount} parts merged` : ""}
+          {item.isPdf ? ` · Rendered via pypdfium2 (~144 DPI)` : ""}
         </div>
       </div>
 
@@ -148,10 +152,22 @@ export default function ScreenshotItem({
             );
           })
         ) : item.stage === "failed" ? (
-          <span className="inline-flex items-center gap-1.5 text-[0.72rem] font-semibold rounded-[20px] px-2.5 py-0.5 bg-[#F8DEDB] text-[#A8281F]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#A8281F]" />
-            Failed
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 text-[0.72rem] font-semibold rounded-[20px] px-2.5 py-0.5 bg-[#F8DEDB] text-[#A8281F]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#A8281F]" />
+              Failed
+            </span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => onRetry(item.id)}
+                className="text-[0.72rem] font-semibold px-2 py-0.5 rounded-[5px] border border-[#DCE1E8] bg-white hover:border-[#9C6B12] text-[#15202C] hover:text-[#9C6B12] transition-colors cursor-pointer"
+                title="Retry reading screenshot"
+              >
+                Retry
+              </button>
+            )}
+          </div>
         ) : item.stage !== "saved" ? (
           <span className="inline-flex items-center gap-1.5 text-[0.72rem] font-semibold rounded-[20px] px-2.5 py-0.5 bg-[#DCEAF5] text-[#235F8C]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#235F8C] animate-pulse" />

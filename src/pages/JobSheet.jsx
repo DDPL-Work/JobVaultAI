@@ -1,30 +1,52 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import JobSheetToolbar from "../components/jobs/JobSheetToolbar";
 import JobSheetTable from "../components/jobs/JobSheetTable";
 import JobSheetPagination from "../components/jobs/JobSheetPagination";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
-import { INITIAL_JOBS } from "../components/jobs/jobsData";
+import ErrorFallback from "../components/common/ErrorFallback";
+import { getJobVaults } from "../components/jobs/jobsData";
+import {
+  fetchJobs,
+  updateJob,
+  approveJob,
+  rejectJob,
+  restoreJob,
+} from "../apis/thunks/jobsThunks";
+import { fetchDashboardStats } from "../apis/thunks/dashboardThunks";
+import { localUpdateJobStatus } from "../apis/slices/jobsSlice";
+import {
+  downloadBackendExcel,
+  downloadBackendCsv,
+  copyToClipboardAsExcel,
+  WORKBOOK_TABS,
+} from "../utils/excelExport";
+import { fetchVaults } from "../apis/thunks/vaultsThunks";
 
 export default function JobSheet() {
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const dispatch = useDispatch();
+  const { items: jobs, loading, loaded, error } = useSelector(
+    (state) => state.jobs
+  );
+  const { vaults: dynamicVaults } = useSelector((state) => state.vaults);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVault, setSelectedVault] = useState("all");
   const [selectedSource, setSelectedSource] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
-  // Show transient toast
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
-  };
+  useEffect(() => {
+    dispatch(fetchJobs());
+    dispatch(fetchVaults());
+  }, [dispatch]);
 
   // Filter jobs based on search, vault, source, status
   const filteredJobs = useMemo(() => {
@@ -41,9 +63,12 @@ export default function JobSheet() {
         }
       }
 
-      // 2. Vault filter
-      if (selectedVault !== "all" && job.vault !== selectedVault) {
-        return false;
+      // 2. Vault filter (Supports Cross-Vault Dual-Routing Multi-Badges)
+      if (selectedVault !== "all") {
+        const vaults = getJobVaults(job);
+        if (!vaults.includes(selectedVault)) {
+          return false;
+        }
       }
 
       // 3. Source filter
@@ -85,129 +110,141 @@ export default function JobSheet() {
   };
 
   // Copy for Excel (TSV clipboard copy)
-  const handleCopyForExcel = () => {
-    const headers = [
-      "Job ID",
-      "Date",
-      "Role",
-      "Company",
-      "Salary",
-      "Location",
-      "Experience",
-      "Vault",
-      "Source",
-      "Status",
-    ];
-
+  // Copy exact 12 columns for Excel
+  const handleCopyForExcel = async () => {
     const targetRows = filteredJobs.filter(
       (j) => selectedStatus !== "all" || j.status === "synced"
     );
+    const jobsToCopy = targetRows.length > 0 ? targetRows : filteredJobs;
 
-    const rows = (targetRows.length > 0 ? targetRows : filteredJobs).map((j) => [
-      j.code,
-      j.created_at?.slice(0, 10) || "",
-      j.title || "",
-      j.company || "",
-      j.salary || "",
-      j.location || "",
-      j.experience || "",
-      j.vault || "",
-      j.source_app || "",
-      j.status || "",
-    ]);
-
-    const tsvContent = [
-      headers.join("\t"),
-      ...rows.map((r) => r.map((c) => String(c).replace(/[\t\n\r]/g, " ")).join("\t")),
-    ].join("\n");
-
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(tsvContent).then(() => {
-        showToast(`${rows.length} rows copied · paste into Excel`);
-      });
+    const success = await copyToClipboardAsExcel(jobsToCopy);
+    if (success) {
+      toast.success(
+        `${jobsToCopy.length} rows copied in 12-column client format · paste into Excel`
+      );
     } else {
-      showToast(`${rows.length} rows prepared`);
+      toast.info(`${jobsToCopy.length} rows prepared`);
     }
   };
 
-  // Download CSV
-  const handleDownloadCsv = () => {
-    const headers = [
-      "Job ID",
-      "Role",
-      "Company",
-      "Location",
-      "Experience",
-      "Salary",
-      "Vault",
-      "Source",
-      "Status",
-    ];
-
-    const rows = filteredJobs.map((j) => [
-      `"${j.code}"`,
-      `"${(j.title || "").replace(/"/g, '""')}"`,
-      `"${(j.company || "").replace(/"/g, '""')}"`,
-      `"${(j.location || "").replace(/"/g, '""')}"`,
-      `"${(j.experience || "").replace(/"/g, '""')}"`,
-      `"${(j.salary || "").replace(/"/g, '""')}"`,
-      `"${(j.vault || "").replace(/"/g, '""')}"`,
-      `"${(j.source_app || "").replace(/"/g, '""')}"`,
-      `"${(j.status || "").replace(/"/g, '""')}"`,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `jobs_export_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("CSV file downloaded");
+  // Download Standard 12-Column CSV from GET /api/export.csv
+  const handleDownloadCsv = async () => {
+    setExportingCsv(true);
+    try {
+      await downloadBackendCsv(filteredJobs, {
+        search: searchQuery,
+        vault: selectedVault,
+        source: selectedSource,
+        status: selectedStatus,
+      });
+      toast.success("CSV file downloaded");
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
-  // Download Excel
-  const handleDownloadExcel = () => {
-    handleDownloadCsv();
+  // Download Real Multi-Tab .xlsx Workbook from GET /api/export.xlsx
+  const handleDownloadExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const activeVaultNames = Array.isArray(dynamicVaults)
+        ? dynamicVaults.filter((v) => v.is_active !== false).map((v) => v.name)
+        : [];
+      const hasAccessVaults = activeVaultNames.some((n) =>
+        n.includes("Access Vault")
+      );
+      const tabs = hasAccessVaults
+        ? ["All Jobs", ...activeVaultNames]
+        : WORKBOOK_TABS;
+
+      await downloadBackendExcel(jobs, tabs, {
+        search: searchQuery,
+        vault: selectedVault,
+        source: selectedSource,
+        status: selectedStatus,
+      });
+      toast.success("Multi-tab Excel workbook (.xlsx) downloaded");
+    } finally {
+      setExportingExcel(false);
+    }
   };
 
-  // Update status from drawer
-  const handleJobStatusChange = (jobId, newStatus) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
-    );
+  // Update status from drawer via live backend APIs
+  const handleJobStatusChange = async (jobId, newStatus) => {
+    dispatch(localUpdateJobStatus({ jobId, newStatus }));
     setSelectedJob((prev) =>
       prev && prev.id === jobId ? { ...prev, status: newStatus } : prev
     );
-    showToast(`Job ${newStatus === "rejected" ? "rejected" : "status updated"}`);
+
+    try {
+      if (newStatus === "synced") {
+        await dispatch(approveJob(jobId)).unwrap();
+      } else if (newStatus === "rejected") {
+        await dispatch(rejectJob(jobId)).unwrap();
+      } else if (newStatus === "review") {
+        await dispatch(restoreJob(jobId)).unwrap();
+      } else {
+        await dispatch(
+          updateJob({ jobId, updates: { status: newStatus } })
+        ).unwrap();
+      }
+      toast.success(
+        newStatus === "rejected"
+          ? "Job rejected"
+          : newStatus === "review"
+          ? "Job moved to review"
+          : newStatus === "synced"
+          ? "Approved & added to sheet"
+          : "Job status updated"
+      );
+      dispatch(fetchDashboardStats());
+      dispatch(fetchJobs());
+      dispatch(fetchVaults());
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job status"
+      );
+      dispatch(fetchJobs());
+      throw err;
+    }
+  };
+
+  const handleJobUpdate = async (updatedJob) => {
+    try {
+      const saved = await dispatch(
+        updateJob({ jobId: updatedJob.id, updates: updatedJob })
+      ).unwrap();
+      const nextJob = saved?.id ? saved : updatedJob;
+      setSelectedJob(nextJob);
+      toast.success("Job updated successfully");
+      dispatch(fetchDashboardStats());
+      dispatch(fetchVaults());
+      return nextJob;
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job"
+      );
+      throw err;
+    }
   };
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-[#15202C] text-white px-4 py-2.5 rounded-[6px] font-semibold text-[0.85rem] shadow-[0_10px_30px_rgba(21,32,44,0.2)] animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
-          {toastMessage}
-        </div>
-      )}
-
       {/* Page Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
+        <div className="flex-1 min-w-[260px]">
           <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
             Job sheet
           </h1>
-          <p className="mt-1 text-[#5A6777] max-w-[70ch] text-[0.875rem] leading-normal m-0">
+          <p className="mt-1 text-[#5A6777] max-w-[65ch] text-[0.875rem] leading-normal m-0">
             Every job that was read from your screenshots. Click a row to see the screenshot and where each value came from.
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center justify-end gap-2.5 flex-wrap shrink-0 ml-auto">
           {/* Copy for Excel */}
           <button
             type="button"
@@ -227,8 +264,9 @@ export default function JobSheet() {
           {/* CSV */}
           <button
             type="button"
+            disabled={exportingCsv}
             onClick={handleDownloadCsv}
-            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+            className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             <svg
               viewBox="0 0 24 24"
@@ -236,14 +274,15 @@ export default function JobSheet() {
             >
               <path d="M12 4v12M7 11l5 5 5-5M4 20h16" />
             </svg>
-            <span>CSV</span>
+            <span>{exportingCsv ? "Exporting..." : "CSV"}</span>
           </button>
 
           {/* Download Excel */}
           <button
             type="button"
+            disabled={exportingExcel}
             onClick={handleDownloadExcel}
-            className="border border-[#9C6B12] bg-[#9C6B12] hover:brightness-105 text-white rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+            className="border border-[#9C6B12] bg-[#9C6B12] hover:brightness-105 text-white rounded-[6px] px-3.5 py-1.5 text-[0.85rem] font-semibold inline-flex items-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
           >
             <svg
               viewBox="0 0 24 24"
@@ -251,10 +290,21 @@ export default function JobSheet() {
             >
               <path d="M12 4v12M7 11l5 5 5-5M4 20h16" />
             </svg>
-            <span>Download Excel</span>
+            <span>{exportingExcel ? "Exporting..." : "Download Excel"}</span>
           </button>
         </div>
       </div>
+
+      {/* Graceful Error Banner if job fetch failed */}
+      {error && !loading && (
+        <ErrorFallback
+          compact
+          title="Could not sync job sheet"
+          message={error}
+          onRetry={() => dispatch(fetchJobs())}
+          retrying={loading}
+        />
+      )}
 
       {/* Main Table Panel */}
       <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
@@ -274,6 +324,7 @@ export default function JobSheet() {
         {/* Table */}
         <JobSheetTable
           jobs={paginatedJobs}
+          loading={loading && !loaded}
           onRowClick={(job) => setSelectedJob(job)}
         />
 
@@ -293,12 +344,7 @@ export default function JobSheet() {
         onClose={() => setSelectedJob(null)}
         onZoomImage={(img) => setZoomImage(img)}
         onStatusChange={handleJobStatusChange}
-        onJobUpdate={(updatedJob) => {
-          setJobs((prev) =>
-            prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
-          );
-          setSelectedJob(updatedJob);
-        }}
+        onJobUpdate={handleJobUpdate}
         onOpenJobId={(jobId) => {
           const found = jobs.find((j) => j.id === jobId);
           if (found) setSelectedJob(found);

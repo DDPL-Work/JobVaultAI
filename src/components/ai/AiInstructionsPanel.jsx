@@ -4,6 +4,7 @@ import { SYSTEM_PROMPT } from "./aiData";
 export default function AiInstructionsPanel({
   extraInstructions,
   onExtraInstructionsChange,
+  systemPrompt = "",
 }) {
   return (
     <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
@@ -32,7 +33,7 @@ export default function AiInstructionsPanel({
             See the full instructions sent with each screenshot
           </summary>
           <pre className="mt-2.5 font-mono text-[0.74rem] whitespace-pre-wrap bg-white border border-[#DCE1E8] rounded-[6px] p-3 text-[#5A6777] max-h-[340px] overflow-auto leading-relaxed">
-            {SYSTEM_PROMPT}
+            {systemPrompt || SYSTEM_PROMPT}
             {extraInstructions && extraInstructions.trim() ? (
               <>
                 {"\n\nAdditional instructions from the admin:\n"}

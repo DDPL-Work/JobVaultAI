@@ -29,9 +29,21 @@
 }
 
 /* Global sleek thin scrollbar for both vertical and horizontal scrollbars */
-html, body, div, main, aside, table, * {
+html, body, div, main, table, * {
   scrollbar-width: thin;
   scrollbar-color: #C9D2DD transparent;
+}
+
+/* Sidebar and elements with .no-scrollbar should never show a scrollbar */
+aside, .no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+aside::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 ::-webkit-scrollbar {
@@ -122,3 +134,259 @@ html, body, div, main, aside, table, * {
     opacity: 0;
   }
 }
+
+/* Compact, sleek Toastify popup */
+.Toastify__toast-container {
+  width: auto !important;
+  max-width: 200px !important;
+  min-width: 200px !important;
+  padding: 0 !important;
+}
+
+.Toastify__toast {
+  min-height: 38px !important;
+  max-height: 48px !important;
+  padding: 6px 10px !important;
+  margin-bottom: 8px !important;
+  border-radius: 7px !important;
+  font-family: inherit !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 4px 16px rgba(21, 32, 44, 0.12), 0 1px 3px rgba(21, 32, 44, 0.08) !important;
+  border: 1px solid #DCE1E8 !important;
+}
+
+.Toastify__toast-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  line-height: 1.25 !important;
+  color: #15202C !important;
+  font-size: 0.8rem !important;
+}
+
+.Toastify__toast-icon {
+  width: 16px !important;
+  height: 16px !important;
+  margin-inline-end: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.Toastify__close-button {
+  align-self: center !important;
+  opacity: 0.45 !important;
+  font-size: 13px !important;
+  padding: 0 2px 0 6px !important;
+  line-height: 1 !important;
+  color: #5A6777 !important;
+}
+
+.Toastify__close-button:hover {
+  opacity: 0.9 !important;
+  color: #15202C !important;
+}
+
+.Toastify__progress-bar {
+  height: 2px !important;
+}
+
+/* ========================================================
+   Dual Theme Engine (High-Contrast Clean Dark Mode)
+   ======================================================== */
+html.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0C1015 !important;
+  color: #EDF2F7 !important;
+}
+
+/* Background canvas */
+html.dark .bg-\[\#F1F3F6\],
+html.dark main {
+  background-color: #0C1015 !important;
+}
+
+/* Main white cards & panels */
+html.dark .bg-white {
+  background-color: #141B23 !important;
+  color: #EDF2F7 !important;
+}
+
+/* Secondary panels, subtle card headers & light backgrounds */
+html.dark .bg-\[\#F6F7F9\],
+html.dark .bg-\[\#FAFBFD\],
+html.dark .bg-\[\#FAF4E8\],
+html.dark .bg-\[\#F1F3F6\] {
+  background-color: #1B2430 !important;
+}
+
+/* Main dark ink text */
+html.dark .text-\[\#15202C\] {
+  color: #F1F5F9 !important;
+}
+
+/* Muted secondary text */
+html.dark .text-\[\#5A6777\],
+html.dark .text-\[\#4F5B69\] {
+  color: #94A3B8 !important;
+}
+
+/* Borders & Separators */
+html.dark .border-\[\#DCE1E8\],
+html.dark .border-\[\#E2E8F0\],
+html.dark .border-\[\#E8ECF2\] {
+  border-color: #243040 !important;
+}
+
+/* Form inputs & controls */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #0F151C !important;
+  color: #F1F5F9 !important;
+  border-color: #283748 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+html.dark select option {
+  background-color: #141B23 !important;
+  color: #F1F5F9 !important;
+}
+
+/* Hover highlights */
+html.dark .hover\:bg-\[\#F6F7F9\]:hover,
+html.dark .hover\:bg-\[\#EEF1F6\]:hover,
+html.dark .hover\:bg-\[\#F1F3F6\]:hover {
+  background-color: #202B39 !important;
+}
+
+/* Soft status & highlight banners */
+html.dark .bg-\[\#DCEAF5\] {
+  background-color: #122434 !important;
+  color: #7DD3FC !important;
+}
+html.dark .text-\[\#235F8C\] {
+  color: #7DD3FC !important;
+}
+
+html.dark .bg-\[\#FBEBCF\] {
+  background-color: #291F0E !important;
+  color: #FBBF24 !important;
+}
+html.dark .text-\[\#9A5B00\] {
+  color: #FBBF24 !important;
+}
+
+html.dark .bg-\[\#F5EAD3\] {
+  background-color: #241A0B !important;
+}
+
+html.dark .bg-\[\#DCF0E3\] {
+  background-color: #0D2418 !important;
+  color: #4ADE80 !important;
+}
+html.dark .text-\[\#24734A\] {
+  color: #4ADE80 !important;
+}
+
+html.dark .bg-\[\#F8DEDB\] {
+  background-color: #2D1414 !important;
+  color: #F87171 !important;
+}
+html.dark .text-\[\#A8281F\] {
+  color: #F87171 !important;
+}
+
+html.dark .bg-\[\#EDF1F5\] {
+  background-color: #1A232F !important;
+  color: #94A3B8 !important;
+}
+
+/* Drawer Dialog Panel */
+html.dark aside[role="dialog"] {
+  background-color: #121820 !important;
+  border-left-color: #243040 !important;
+}
+html.dark aside[role="dialog"] .bg-white {
+  background-color: #121820 !important;
+}
+html.dark aside[role="dialog"] .border-b,
+html.dark aside[role="dialog"] .border-t {
+  border-color: #243040 !important;
+}
+
+/* Tables */
+html.dark table {
+  border-color: #243040 !important;
+}
+html.dark th {
+  background-color: #19212B !important;
+  color: #94A3B8 !important;
+  border-color: #243040 !important;
+}
+html.dark td {
+  border-color: #243040 !important;
+  color: #F1F5F9 !important;
+}
+html.dark tr:hover td {
+  background-color: #1A232E !important;
+}
+
+/* Popover Profile Menu in Dark Mode */
+html.dark .shadow-\[0_12px_36px_rgba\(21\,32\,44\,0\.18\)\,0_2px_8px_rgba\(21\,32\,44\,0\.08\)\] {
+  background-color: #151D26 !important;
+  border-color: #273444 !important;
+  color: #EDF2F7 !important;
+}
+
+/* Toastify in Dark Mode */
+html.dark .Toastify__toast {
+  background-color: #161E28 !important;
+  color: #F1F5F9 !important;
+  border-color: #29384A !important;
+}
+html.dark .Toastify__toast-body {
+  color: #F1F5F9 !important;
+}
+
+/* Dark Mode Scrollbars */
+html.dark, html.dark body, html.dark div, html.dark main, html.dark table, html.dark * {
+  scrollbar-color: #283748 transparent !important;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #283748 !important;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3B4E63 !important;
+}
+
+/* Smooth Shimmer Skeleton Animation */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #E8ECF2 25%, #F6F8FB 50%, #E8ECF2 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+
+html.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, #1A2330 25%, #243142 50%, #1A2330 75%);
+  background-size: 200% 100%;
+}
+

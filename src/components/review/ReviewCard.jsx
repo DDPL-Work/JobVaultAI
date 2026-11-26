@@ -1,21 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SOURCE_COLORS } from "../jobs/jobsData";
+import { API_BASE_URL } from "../../apis/apiClient";
+import SafeImage from "../common/SafeImage";
 
 export default function ReviewCard({
   job,
+  isSubmitting = false,
   onApprove,
   onReject,
   onZoomImage,
 }) {
   const [formData, setFormData] = useState({ ...job });
 
+  useEffect(() => {
+    setFormData({ ...job });
+  }, [job]);
+
   const handleChange = (field, val) => {
     setFormData((prev) => ({ ...prev, [field]: val }));
   };
 
   const isFlagged = (fieldName) => {
-    return job.flags && job.flags.includes(fieldName);
+    return Array.isArray(job.flags) && job.flags.includes(fieldName);
   };
+
+  const imageSrc =
+    job.image && job.image.startsWith("/")
+      ? `${API_BASE_URL}${job.image}`
+      : job.image;
+
+  const statusBadgeText =
+    job.statusBadge ||
+    (Array.isArray(job.flags) && job.flags.length > 0
+      ? `${job.flags
+          .map((f) => (f === "exp_min" ? "experience" : f))
+          .join(", ")} unclear`
+      : "Needs review");
 
   const getConfidenceInfo = (conf) => {
     const p = Math.round((conf || 0) * 100);
@@ -32,14 +52,16 @@ export default function ReviewCard({
     <div className="grid grid-cols-[300px_minmax(0,1fr)] max-[900px]:grid-cols-1 border-t border-[#DCE1E8] first:border-t-0">
       {/* Left Column: Image preview & OCR text */}
       <div className="p-3 bg-[#F6F7F9] border-r border-[#DCE1E8] max-[900px]:border-r-0 max-[900px]:border-b flex flex-col gap-2">
-        {job.image && (
-          <img
-            src={job.image}
-            alt={`Screenshot for ${job.code}`}
-            onClick={() => onZoomImage?.(job.image)}
-            className="w-full max-h-[440px] object-contain rounded-[6px] border border-[#DCE1E8] bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
-            loading="lazy"
-          />
+        {imageSrc && (
+          <div className="w-full min-h-[220px] max-h-[440px] rounded-[6px] border border-[#DCE1E8] bg-white overflow-hidden">
+            <SafeImage
+              src={imageSrc}
+              alt={`Screenshot for ${job.code}`}
+              onClick={() => onZoomImage?.(imageSrc)}
+              className="w-full max-h-[440px] object-contain cursor-zoom-in hover:opacity-95"
+              fallbackClassName="w-full h-[220px]"
+            />
+          </div>
         )}
 
         <details className="text-[0.78rem] text-[#5A6777] select-none">
@@ -84,7 +106,7 @@ export default function ReviewCard({
           {/* Status Badge */}
           <span className="inline-flex items-center gap-1.5 text-[0.72rem] font-semibold rounded-[20px] px-2.5 py-0.5 bg-[#FBEBCF] text-[#9A5B00] select-none">
             <span className="w-1.5 h-1.5 rounded-full bg-[#9A5B00]" />
-            {job.statusBadge || "Needs review"}
+            {statusBadgeText}
           </span>
         </div>
 
@@ -97,7 +119,7 @@ export default function ReviewCard({
             </label>
             <input
               type="text"
-              value={formData.title}
+              value={formData.title ?? ""}
               onChange={(e) => handleChange("title", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
@@ -118,7 +140,7 @@ export default function ReviewCard({
             </label>
             <input
               type="text"
-              value={formData.company}
+              value={formData.company ?? ""}
               placeholder={isFlagged("company") ? "Not readable in image" : ""}
               onChange={(e) => handleChange("company", e.target.value)}
               className={`rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
@@ -152,7 +174,7 @@ export default function ReviewCard({
             </label>
             <input
               type="text"
-              value={formData.location}
+              value={formData.location ?? ""}
               placeholder={isFlagged("location") ? "Not readable in image" : ""}
               onChange={(e) => handleChange("location", e.target.value)}
               className={`rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
@@ -184,13 +206,13 @@ export default function ReviewCard({
                 </span>
               )}
             </label>
-            <div className="flex items-center gap-2 max-w-[200px]">
+            <div className="flex items-center gap-2.5 w-full">
               <input
                 type="text"
                 placeholder="min"
-                value={formData.exp_min}
+                value={formData.exp_min ?? ""}
                 onChange={(e) => handleChange("exp_min", e.target.value)}
-                className={`w-full min-w-0 font-['IBM_Plex_Mono',monospace] rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
+                className={`flex-1 min-w-0 font-['IBM_Plex_Mono',monospace] rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
                   isFlagged("exp_min")
                     ? "border border-[#9A5B00] bg-[#FBEBCF]"
                     : "border border-[#DCE1E8] bg-white focus:border-[#9C6B12]"
@@ -200,9 +222,9 @@ export default function ReviewCard({
               <input
                 type="text"
                 placeholder="max"
-                value={formData.exp_max}
+                value={formData.exp_max ?? ""}
                 onChange={(e) => handleChange("exp_max", e.target.value)}
-                className={`w-full min-w-0 font-['IBM_Plex_Mono',monospace] rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
+                className={`flex-1 min-w-0 font-['IBM_Plex_Mono',monospace] rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none ${
                   isFlagged("exp_min")
                     ? "border border-[#9A5B00] bg-[#FBEBCF]"
                     : "border border-[#DCE1E8] bg-white focus:border-[#9C6B12]"
@@ -229,7 +251,7 @@ export default function ReviewCard({
             </label>
             <input
               type="text"
-              value={formData.salary}
+              value={formData.salary ?? ""}
               onChange={(e) => handleChange("salary", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
@@ -244,7 +266,7 @@ export default function ReviewCard({
               Work mode
             </label>
             <select
-              value={formData.work_mode}
+              value={formData.work_mode || "Not stated"}
               onChange={(e) => handleChange("work_mode", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12] cursor-pointer"
             >
@@ -263,7 +285,7 @@ export default function ReviewCard({
             <input
               type="text"
               placeholder="e.g. India"
-              value={formData.country}
+              value={formData.country ?? ""}
               onChange={(e) => handleChange("country", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
@@ -276,7 +298,7 @@ export default function ReviewCard({
             </label>
             <input
               type="text"
-              value={formData.apply_contact}
+              value={formData.apply_contact ?? ""}
               onChange={(e) => handleChange("apply_contact", e.target.value)}
               className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1 text-[0.82rem] h-[32px] text-[#15202C] focus:outline-none focus:border-[#9C6B12]"
             />
@@ -298,17 +320,19 @@ export default function ReviewCard({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => onReject?.(job.id)}
-              className="border border-[#DCE1E8] bg-white hover:bg-[#F8DEDB] text-[#A8281F] rounded-[6px] px-3.5 py-1 text-[0.8rem] font-semibold transition-colors cursor-pointer"
+              className="border border-[#DCE1E8] bg-white hover:bg-[#F8DEDB] text-[#A8281F] rounded-[6px] px-3.5 py-1 text-[0.8rem] font-semibold transition-colors cursor-pointer disabled:opacity-50"
             >
               Reject
             </button>
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => onApprove?.(formData)}
-              className="bg-[#24734A] hover:brightness-105 text-white rounded-[6px] px-3.5 py-1 text-[0.8rem] font-semibold transition-all cursor-pointer shadow-sm"
+              className="bg-[#24734A] hover:brightness-105 text-white rounded-[6px] px-3.5 py-1 text-[0.8rem] font-semibold transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
-              Approve & add to sheet
+              {isSubmitting ? "Saving..." : "Approve & add to sheet"}
             </button>
           </div>
         </div>

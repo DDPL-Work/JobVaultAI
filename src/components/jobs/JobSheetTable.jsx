@@ -1,6 +1,11 @@
-import { SOURCE_COLORS } from "./jobsData";
+import { SOURCE_COLORS, getJobVaults } from "./jobsData";
+import { JobSheetTableSkeleton } from "../common/LoadingSkeletons";
 
-export default function JobSheetTable({ jobs = [], onRowClick }) {
+export default function JobSheetTable({
+  jobs = [],
+  loading = false,
+  onRowClick,
+}) {
   const getStatusPill = (status) => {
     switch (status) {
       case "synced":
@@ -48,6 +53,10 @@ export default function JobSheetTable({ jobs = [], onRowClick }) {
     else if (p < 80) colorClass = "bg-[#9A5B00]";
     return { p, colorClass };
   };
+
+  if (loading) {
+    return <JobSheetTableSkeleton rows={8} />;
+  }
 
   if (!jobs || jobs.length === 0) {
     return (
@@ -144,11 +153,31 @@ export default function JobSheetTable({ jobs = [], onRowClick }) {
                   {job.salary || "—"}
                 </td>
 
-                {/* Vault */}
+                {/* Vault (Supports Cross-Vault Dual-Routing Multi-Badges) */}
                 <td className="py-2.5 px-3 whitespace-nowrap">
-                  <span className="border border-[#DCE1E8] rounded-[4px] px-[7px] py-[1.5px] text-[0.74rem] font-semibold bg-[#F6F7F9] text-[#15202C] inline-block">
-                    {job.vault}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {getJobVaults(job).map((v) => {
+                      const isRemote = v.toLowerCase().includes("remote");
+                      const isGlobal = v.toLowerCase().includes("global");
+                      return (
+                        <span
+                          key={v}
+                          className={`border rounded-[4px] px-[7px] py-[1.5px] text-[0.74rem] font-semibold inline-flex items-center gap-1 whitespace-nowrap ${
+                            isRemote
+                              ? "border-[#B5D4F4] bg-[#EAF2FB] text-[#1E568B]"
+                              : isGlobal
+                              ? "border-[#E1D4F4] bg-[#F5F0FB] text-[#5A2C91]"
+                              : "border-[#DCE1E8] bg-[#F6F7F9] text-[#15202C]"
+                          }`}
+                        >
+                          {isRemote && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#1E568B] inline-block shrink-0" />
+                          )}
+                          {v}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </td>
 
                 {/* Source */}

@@ -1,8 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
+import { useDispatch, useSelector } from "react-redux";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
-import { INITIAL_JOBS } from "../components/jobs/jobsData";
+import ErrorFallback from "../components/common/ErrorFallback";
+import {
+  DashboardKpiSkeleton,
+  DashboardTableSkeleton,
+  DashboardListCardSkeleton,
+  DashboardSparkSkeleton,
+} from "../components/common/LoadingSkeletons";
+import { getJobVaults } from "../components/jobs/jobsData";
+import {
+  fetchDashboardStats,
+  fetchRecentJobs,
+} from "../apis/thunks/dashboardThunks";
+import {
+  updateJob,
+  approveJob,
+  rejectJob,
+  restoreJob,
+} from "../apis/thunks/jobsThunks";
+import {
+  updateRecentJobStatus,
+  updateRecentJob,
+} from "../apis/slices/dashboardSlice";
 
 // Platform brand colors matching the HTML design
 const SOURCE_COLORS = {
@@ -13,129 +36,7 @@ const SOURCE_COLORS = {
   Other: "#7A8696",
 };
 
-// Demo sample data matching the design specification
-const STATS = {
-  screenshotsWeek: 14,
-  screenshots: 14,
-  inSheet: 11,
-  addedToday: 2,
-  review: 2,
-  duplicates: 1,
-  failed: 0,
-  threshold: 80,
-  byVault: {
-    "India · Fresher": 2,
-    "India · Junior": 2,
-    "India · Mid-level": 3,
-    "India · Senior": 2,
-    "Global": 2,
-    "Remote": 1,
-  },
-  bySource: [
-    { source: "LinkedIn", count: 5 },
-    { source: "WhatsApp", count: 4 },
-    { source: "Telegram", count: 3 },
-    { source: "Instagram", count: 2 },
-  ],
-  recentJobs: [
-    {
-      id: 1040,
-      code: "JV-1040",
-      title: "Senior Data Analyst",
-      company: "Northwind Analytics",
-      location: "Bengaluru",
-      vault: "India · Mid-level",
-      source: "LinkedIn",
-      status: "synced",
-    },
-    {
-      id: 1039,
-      code: "JV-1039",
-      title: "Customer Support Executive",
-      company: "Himal BPO Services",
-      location: "Dehradun",
-      vault: "India · Fresher",
-      source: "WhatsApp",
-      status: "synced",
-    },
-    {
-      id: 1038,
-      code: "JV-1038",
-      title: "Frontend Developer (React)",
-      company: "Lumen Stack",
-      location: "Remote",
-      vault: "Remote",
-      source: "Telegram",
-      status: "synced",
-    },
-    {
-      id: 1037,
-      code: "JV-1037",
-      title: "Marketing Manager",
-      company: "Sandline Retail",
-      location: "Dubai, UAE",
-      vault: "Global",
-      source: "LinkedIn",
-      status: "synced",
-    },
-    {
-      id: 1036,
-      code: "JV-1036",
-      title: "Content Writer",
-      company: "Company unclear",
-      location: "Location unclear",
-      vault: "India · Fresher",
-      source: "Instagram",
-      status: "review",
-    },
-    {
-      id: 1035,
-      code: "JV-1035",
-      title: "Sales Manager - B2B",
-      company: "Vantage Polymers",
-      location: "Noida",
-      vault: "India · Mid-level",
-      source: "WhatsApp",
-      status: "review",
-    },
-    {
-      id: 1034,
-      code: "JV-1034",
-      title: "Head of Engineering",
-      company: "Quickbasket",
-      location: "Mumbai",
-      vault: "India · Senior",
-      source: "LinkedIn",
-      status: "synced",
-    },
-    {
-      id: 1033,
-      code: "JV-1033",
-      title: "Business Analyst",
-      company: "Crestview Consulting",
-      location: "Gurugram",
-      vault: "India · Junior",
-      source: "Telegram",
-      status: "synced",
-    },
-  ],
-  days: [
-    { date: "03", count: 1 },
-    { date: "04", count: 0 },
-    { date: "05", count: 1 },
-    { date: "06", count: 2 },
-    { date: "07", count: 1 },
-    { date: "08", count: 1 },
-    { date: "09", count: 0 },
-    { date: "10", count: 1 },
-    { date: "11", count: 2 },
-    { date: "12", count: 1 },
-    { date: "13", count: 1 },
-    { date: "14", count: 1 },
-    { date: "15", count: 0 },
-    { date: "16", count: 2 },
-  ],
-};
+
 
 /**
  * Reusable KPI Card Component
@@ -157,7 +58,7 @@ function KpiCard({ to, label, value, description, isAttn = false, isBad = false 
     </>
   );
 
-  const baseClasses = `p-[14px_16px] rounded-[8px] flex flex-col gap-1 transition-colors ${
+  const baseClasses = `p-[14px_16px] rounded-[8px] flex flex-col gap-1 transition-all duration-300 ease-out ${
     isAttn
       ? "bg-[#FBEBCF] border border-transparent"
       : "bg-white border border-[#DCE1E8] hover:border-[#5A6777]"
@@ -232,9 +133,49 @@ function SourceTag({ source }) {
  * Main Dashboard Page
  */
 export default function Dashboard() {
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const dispatch = useDispatch();
+  const {
+    stats: STATS,
+    recentJobs,
+    loadingStats,
+    loadingJobs,
+    statsLoaded,
+    error,
+  } = useSelector((state) => state.dashboard);
+
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
+  const [barsReady, setBarsReady] = useState(false);
+
+  const handleRetryDashboard = () => {
+    dispatch(fetchDashboardStats());
+    dispatch(fetchRecentJobs(8));
+  };
+
+  useEffect(() => {
+    dispatch(fetchDashboardStats());
+    dispatch(fetchRecentJobs(8));
+  }, [dispatch]);
+
+  // Trigger smooth bar fill animation from 0% once live stats arrive
+  const hasStatsData =
+    Object.keys(STATS.byVault || {}).length > 0 ||
+    (STATS.bySource || []).length > 0 ||
+    (STATS.days || []).some((d) => Number(d.count ?? d.n ?? 0) > 0);
+
+  useEffect(() => {
+    if (!hasStatsData || barsReady) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setBarsReady(true);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [hasStatsData, barsReady]);
 
   const currentHour = new Date().getHours();
   const greeting =
@@ -244,43 +185,91 @@ export default function Dashboard() {
       ? "Good afternoon"
       : "Good evening";
 
-  const handleJobStatusChange = (jobId, newStatus) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
-    );
+  const handleJobStatusChange = async (jobId, newStatus) => {
+    dispatch(updateRecentJobStatus({ jobId, newStatus }));
     setSelectedJob((prev) =>
       prev && prev.id === jobId ? { ...prev, status: newStatus } : prev
     );
+
+    try {
+      if (newStatus === "synced") {
+        await dispatch(approveJob(jobId)).unwrap();
+      } else if (newStatus === "rejected") {
+        await dispatch(rejectJob(jobId)).unwrap();
+      } else if (newStatus === "review") {
+        await dispatch(restoreJob(jobId)).unwrap();
+      } else {
+        await dispatch(
+          updateJob({ jobId, updates: { status: newStatus } })
+        ).unwrap();
+      }
+      toast.success(
+        newStatus === "rejected"
+          ? "Job rejected"
+          : newStatus === "review"
+          ? "Job moved to review"
+          : newStatus === "synced"
+          ? "Approved & added to sheet"
+          : "Job status updated"
+      );
+      dispatch(fetchDashboardStats());
+      dispatch(fetchRecentJobs(8));
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job status"
+      );
+      dispatch(fetchRecentJobs(8));
+      throw err;
+    }
   };
 
-  const handleJobUpdate = (updatedJob) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
-    );
-    setSelectedJob(updatedJob);
+  const handleJobUpdate = async (updatedJob) => {
+    try {
+      const saved = await dispatch(
+        updateJob({ jobId: updatedJob.id, updates: updatedJob })
+      ).unwrap();
+      const nextJob = saved?.id ? saved : updatedJob;
+      dispatch(updateRecentJob(nextJob));
+      setSelectedJob(nextJob);
+      toast.success("Job updated successfully");
+      dispatch(fetchDashboardStats());
+      dispatch(fetchRecentJobs(8));
+      return nextJob;
+    } catch (err) {
+      toast.error(
+        (typeof err === "string" ? err : err?.message) ||
+          "Failed to update job"
+      );
+      throw err;
+    }
   };
 
-  // Recent 8 jobs matching dashboard.html
-  const recentJobs = jobs.slice(0, 8);
-
-  const maxVaultCount = Math.max(1, ...Object.values(STATS.byVault));
-  const maxDayCount = Math.max(1, ...STATS.days.map((d) => d.count));
-  const totalSources = STATS.bySource.reduce((acc, curr) => acc + curr.count, 0) || 1;
+  const maxVaultCount = Math.max(1, ...Object.values(STATS.byVault || {}));
+  const maxDayCount = Math.max(
+    1,
+    ...(STATS.days || []).map((d) => Number(d.count ?? d.n ?? 0))
+  );
+  const totalSources =
+    (STATS.bySource || []).reduce(
+      (acc, curr) => acc + Number(curr.count ?? curr.n ?? 0),
+      0
+    ) || 1;
 
   return (
     <div className="flex flex-col gap-4">
       {/* Page Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
+        <div className="flex-1 min-w-[260px]">
           <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
             {greeting}
           </h1>
-          <p className="mt-1 text-[#5A6777] max-w-[70ch] text-[0.875rem] leading-normal m-0">
+          <p className="mt-1 text-[#5A6777] max-w-[65ch] text-[0.875rem] leading-normal m-0">
             Job screenshots are read by AI, checked against the text in the image, sorted into
             vaults and added to your job sheet.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center justify-end gap-2.5 flex-wrap shrink-0 ml-auto">
           <Link
             to="/jobs"
             className="border border-[#DCE1E8] bg-white text-[#15202C] hover:border-[#5A6777] rounded-[6px] px-3.5 py-1.5 font-semibold text-[0.85rem] inline-flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer select-none"
@@ -318,43 +307,58 @@ export default function Dashboard() {
         </span>
       </div> */}
 
+      {/* Graceful Error Fallback Banner if live sync failed */}
+      {error && !loadingStats && (
+        <ErrorFallback
+          compact
+          title="Could not refresh dashboard"
+          message={error}
+          onRetry={handleRetryDashboard}
+          retrying={loadingStats || loadingJobs}
+        />
+      )}
+
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 min-[1101px]:grid-cols-5 gap-4">
-        <KpiCard
-          to="/inbox"
-          label="Screenshots this week"
-          value={STATS.screenshotsWeek}
-          description={`${STATS.screenshots} in total`}
-        />
-        <KpiCard
-          to="/jobs"
-          label="Jobs in sheet"
-          value={STATS.inSheet}
-          description={`${STATS.addedToday} added today`}
-        />
-        <KpiCard
-          to="/review"
-          label="Needs your review"
-          value={STATS.review}
-          description={`Unclear or below ${STATS.threshold}% confidence`}
-          isAttn={STATS.review > 0}
-        />
-        <KpiCard
-          label="Duplicates skipped"
-          value={STATS.duplicates}
-          description="Same job shared again"
-        />
-        <KpiCard
-          to="/inbox"
-          label="Failed to read"
-          value={STATS.failed}
-          description={STATS.failed ? "Open to retry" : "Nothing failed"}
-          isBad={STATS.failed > 0}
-        />
-      </div>
+      {loadingStats && !statsLoaded ? (
+        <DashboardKpiSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 min-[1101px]:grid-cols-5 gap-4">
+          <KpiCard
+            to="/inbox"
+            label="Screenshots this week"
+            value={STATS.screenshotsWeek}
+            description={`${STATS.screenshots} in total`}
+          />
+          <KpiCard
+            to="/jobs"
+            label="Jobs in sheet"
+            value={STATS.inSheet}
+            description={`${STATS.addedToday} added today`}
+          />
+          <KpiCard
+            to="/review"
+            label="Needs your review"
+            value={STATS.review}
+            description={`Unclear or below ${STATS.threshold}% confidence`}
+            isAttn={STATS.review > 0}
+          />
+          <KpiCard
+            label="Duplicates skipped"
+            value={STATS.duplicates}
+            description="Same job shared again"
+          />
+          <KpiCard
+            to="/inbox"
+            label="Failed to read"
+            value={STATS.failed}
+            description={STATS.failed ? "Open to retry" : "Nothing failed"}
+            isBad={STATS.failed > 0}
+          />
+        </div>
+      )}
 
       {/* Main 2-Column Split */}
-      <div className="grid grid-cols-1 min-[901px]:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-4">
+      <div className="grid grid-cols-1 min-[901px]:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-2.5">
         {/* Left Column: Latest Jobs Table */}
         <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden">
           <div className="flex items-center justify-between p-[14px_16px] border-b border-[#DCE1E8] flex-wrap gap-2.5">
@@ -369,57 +373,86 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[0.84rem]">
-              <thead>
-                <tr className="bg-[#F6F7F9]">
-                  <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
-                    Job
-                  </th>
-                  <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
-                    Vault
-                  </th>
-                  <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
-                    Source
-                  </th>
-                  <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentJobs.map((job) => (
-                  <tr
-                    key={job.id}
-                    onClick={() => setSelectedJob(job)}
-                    className="hover:bg-[#F6F7F9] transition-colors cursor-pointer"
-                  >
-                    <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                      <b className="font-semibold block text-[#15202C]">{job.title}</b>
-                      <span className="text-[0.78rem] text-[#5A6777]">
-                        {job.company} · {job.location}
-                      </span>
-                    </td>
-                    <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                      <span className="text-[0.74rem] font-semibold border border-[#DCE1E8] rounded-[4px] px-[7px] py-[1px] whitespace-nowrap bg-[#F6F7F9]">
-                        {job.vault}
-                      </span>
-                    </td>
-                    <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                      <SourceTag source={job.source_app || job.source} />
-                    </td>
-                    <td className="p-[10px_12px] border-b border-[#DCE1E8]">
-                      <StatusPill status={job.status} />
-                    </td>
+          {loadingJobs && recentJobs.length === 0 ? (
+            <DashboardTableSkeleton rows={6} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[0.84rem]">
+                <thead>
+                  <tr className="bg-[#F6F7F9]">
+                    <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
+                      Job
+                    </th>
+                    <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
+                      Vault
+                    </th>
+                    <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
+                      Source
+                    </th>
+                    <th className="text-left text-[0.7rem] uppercase tracking-[0.07em] text-[#5A6777] font-semibold p-[9px_12px] border-b border-[#DCE1E8] whitespace-nowrap">
+                      Status
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentJobs.length > 0 ? (
+                    recentJobs.map((job) => (
+                      <tr
+                        key={job.id}
+                        onClick={() => setSelectedJob(job)}
+                        className="hover:bg-[#F6F7F9] transition-colors duration-300 ease-out cursor-pointer"
+                      >
+                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
+                          <b className="font-semibold block text-[#15202C]">{job.title}</b>
+                          <span className="text-[0.78rem] text-[#5A6777]">
+                            {job.company} · {job.location}
+                          </span>
+                        </td>
+                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {getJobVaults(job).map((v) => {
+                              const isRemote = v.toLowerCase().includes("remote");
+                              return (
+                                <span
+                                  key={v}
+                                  className={`text-[0.74rem] font-semibold border rounded-[4px] px-[7px] py-[1px] whitespace-nowrap ${
+                                    isRemote
+                                      ? "border-[#B5D4F4] bg-[#EAF2FB] text-[#1E568B]"
+                                      : "border-[#DCE1E8] bg-[#F6F7F9] text-[#15202C]"
+                                  }`}
+                                >
+                                  {v}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
+                          <SourceTag source={job.source_app || job.source} />
+                        </td>
+                        <td className="p-[10px_12px] border-b border-[#DCE1E8]">
+                          <StatusPill status={job.status} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="p-8 text-center text-[#5A6777] text-[0.84rem]"
+                      >
+                        No jobs added yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Vaults, 14-Day Spark, and Sources */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2.5">
           {/* Jobs per Vault */}
           <div className="bg-white border border-[#DCE1E8] rounded-[8px]">
             <div className="flex items-center justify-between p-[14px_16px] border-b border-[#DCE1E8]">
@@ -433,28 +466,41 @@ export default function Dashboard() {
                 Open vaults
               </Link>
             </div>
-            <div className="p-4 flex flex-col gap-[11px]">
-              {Object.entries(STATS.byVault).map(([vaultName, count]) => {
-                const widthPercent = (count / maxVaultCount) * 100;
-                return (
-                  <div
-                    key={vaultName}
-                    className="grid grid-cols-[140px_minmax(0,1fr)_36px] max-[620px]:grid-cols-[110px_minmax(0,1fr)_30px] gap-2.5 items-center text-[0.84rem]"
-                  >
-                    <span className="truncate text-[#15202C]">{vaultName}</span>
-                    <div className="h-[10px] rounded-[5px] bg-[#F6F7F9] overflow-hidden border border-[#DCE1E8]">
+            {loadingStats && !statsLoaded ? (
+              <DashboardListCardSkeleton rows={6} />
+            ) : (
+              <div className="p-4 flex flex-col gap-[7px]">
+                {Object.entries(STATS.byVault || {}).length > 0 ? (
+                  Object.entries(STATS.byVault || {}).map(([vaultName, count], idx) => {
+                    const widthPercent = (count / maxVaultCount) * 100;
+                    return (
                       <div
-                        className="h-full bg-[#9C6B12] rounded-[5px] min-w-[2px] transition-all"
-                        style={{ width: `${widthPercent}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-right font-['IBM_Plex_Mono',monospace] text-[#15202C]">
-                      {count}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                        key={vaultName}
+                        className="grid grid-cols-[140px_minmax(0,1fr)_36px] max-[620px]:grid-cols-[110px_minmax(0,1fr)_30px] gap-2.5 items-center text-[0.84rem] py-1 px-1.5 -mx-1.5 rounded-[6px] hover:bg-[#F6F7F9] transition-colors duration-300 ease-out"
+                      >
+                        <span className="truncate text-[#15202C]">{vaultName}</span>
+                        <div className="h-[10px] rounded-[5px] bg-[#F6F7F9] overflow-hidden border border-[#DCE1E8]">
+                          <div
+                            className="h-full bg-[#9C6B12] rounded-[5px] min-w-[2px] transition-[width] duration-[1000ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                              width: barsReady ? `${widthPercent}%` : "0%",
+                              transitionDelay: `${idx * 70}ms`,
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-right font-['IBM_Plex_Mono',monospace] tabular-nums text-[#15202C]">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <span className="text-[0.82rem] text-[#5A6777] py-2 text-center">
+                    No vault data available.
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Jobs Added Last 14 Days */}
@@ -464,30 +510,44 @@ export default function Dashboard() {
                 Jobs added, last 14 days
               </h2>
             </div>
-            <div className="p-4">
-              <div className="grid grid-cols-14 gap-1 items-end h-[84px]">
-                {STATS.days.map((item, index) => {
-                  const heightPercent = item.count
-                    ? Math.max(8, (item.count / maxDayCount) * 100)
-                    : 4;
-                  return (
-                    <div
-                      key={index}
-                      title={`Day ${item.date}: ${item.count} jobs`}
-                      className={`rounded-t-[3px] min-h-[3px] transition-all ${
-                        item.count ? "bg-[#9C6B12]" : "bg-[#DCE1E8]"
-                      }`}
-                      style={{ height: `${heightPercent}%` }}
-                    ></div>
-                  );
-                })}
+            {loadingStats && !statsLoaded ? (
+              <DashboardSparkSkeleton />
+            ) : (
+              <div className="p-4">
+                <div className="grid grid-cols-14 gap-1 items-end h-[84px]">
+                  {(STATS.days || []).map((item, index) => {
+                    const countVal = Number(item.count ?? item.n ?? 0);
+                    const dateLabel =
+                      item.date ||
+                      (item.d ? String(item.d).split("-").pop() : "");
+                    const heightPercent = countVal
+                      ? Math.max(8, (countVal / maxDayCount) * 100)
+                      : 4;
+                    return (
+                      <div
+                        key={index}
+                        title={`${item.fullDate || item.d || dateLabel}: ${countVal} jobs`}
+                        className={`rounded-t-[3px] min-h-[3px] transition-[height,background-color,opacity] duration-[1000ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:opacity-85 ${
+                          countVal ? "bg-[#9C6B12]" : "bg-[#DCE1E8]"
+                        }`}
+                        style={{
+                          height: barsReady ? `${heightPercent}%` : "4%",
+                          transitionDelay: `${index * 35}ms`,
+                        }}
+                      ></div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-14 gap-1 text-[0.68rem] text-[#5A6777] text-center mt-1.5 font-['IBM_Plex_Mono',monospace] tabular-nums">
+                  {(STATS.days || []).map((item, index) => {
+                    const dateLabel =
+                      item.date ||
+                      (item.d ? String(item.d).split("-").pop() : "");
+                    return <span key={index}>{dateLabel}</span>;
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-14 gap-1 text-[0.64rem] text-[#5A6777] text-center mt-1 font-['IBM_Plex_Mono',monospace]">
-                {STATS.days.map((item, index) => (
-                  <span key={index}>{item.date}</span>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Where Jobs Come From */}
@@ -497,34 +557,45 @@ export default function Dashboard() {
                 Where jobs come from
               </h2>
             </div>
-            <div className="p-4 flex flex-col gap-[11px]">
-              {STATS.bySource.map(({ source, count }) => {
-                const widthPercent = (count / totalSources) * 100;
-                const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS.Other;
-                return (
-                  <div
-                    key={source}
-                    className="grid grid-cols-[140px_minmax(0,1fr)_36px] max-[620px]:grid-cols-[110px_minmax(0,1fr)_30px] gap-2.5 items-center text-[0.84rem]"
-                  >
-                    <span>
-                      <SourceTag source={source} />
-                    </span>
-                    <div className="h-[10px] rounded-[5px] bg-[#F6F7F9] overflow-hidden border border-[#DCE1E8]">
+            {loadingStats && !statsLoaded ? (
+              <DashboardListCardSkeleton rows={3} />
+            ) : (
+              <div className="p-4 flex flex-col gap-[7px]">
+                {(STATS.bySource || []).length > 0 ? (
+                  (STATS.bySource || []).map(({ source, count }, idx) => {
+                    const widthPercent = (count / totalSources) * 100;
+                    const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS.Other;
+                    return (
                       <div
-                        className="h-full rounded-[5px] min-w-[2px] transition-all"
-                        style={{
-                          width: `${widthPercent}%`,
-                          backgroundColor: sourceColor,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-right font-['IBM_Plex_Mono',monospace] text-[#15202C]">
-                      {count}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                        key={source}
+                        className="grid grid-cols-[140px_minmax(0,1fr)_36px] max-[620px]:grid-cols-[110px_minmax(0,1fr)_30px] gap-2.5 items-center text-[0.84rem] py-1 px-1.5 -mx-1.5 rounded-[6px] hover:bg-[#F6F7F9] transition-colors duration-300 ease-out"
+                      >
+                        <span>
+                          <SourceTag source={source} />
+                        </span>
+                        <div className="h-[10px] rounded-[5px] bg-[#F6F7F9] overflow-hidden border border-[#DCE1E8]">
+                          <div
+                            className="h-full rounded-[5px] min-w-[2px] transition-[width] duration-[1000ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                              width: barsReady ? `${widthPercent}%` : "0%",
+                              backgroundColor: sourceColor,
+                              transitionDelay: `${idx * 70}ms`,
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-right font-['IBM_Plex_Mono',monospace] tabular-nums text-[#15202C]">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <span className="text-[0.82rem] text-[#5A6777] py-2 text-center">
+                    No source data yet.
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -537,7 +608,7 @@ export default function Dashboard() {
         onStatusChange={handleJobStatusChange}
         onJobUpdate={handleJobUpdate}
         onOpenJobId={(jobId) => {
-          const found = jobs.find((j) => j.id === jobId);
+          const found = recentJobs.find((j) => j.id === jobId);
           if (found) setSelectedJob(found);
         }}
       />

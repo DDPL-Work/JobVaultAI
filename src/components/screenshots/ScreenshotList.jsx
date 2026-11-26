@@ -1,10 +1,16 @@
 import ScreenshotItem from "./ScreenshotItem";
+import { ScreenshotsListSkeleton } from "../common/LoadingSkeletons";
+import ErrorFallback from "../common/ErrorFallback";
 
 export default function ScreenshotList({
   items = [],
+  loading = false,
+  error = null,
   queueInfo = "Queue is empty",
   onZoom,
   onDelete,
+  onRetry,
+  onRefresh,
   onOpenJob,
 }) {
   return (
@@ -21,13 +27,24 @@ export default function ScreenshotList({
 
       {/* List Content */}
       <div>
-        {items.length > 0 ? (
+        {loading && items.length === 0 ? (
+          <ScreenshotsListSkeleton rows={4} />
+        ) : error && items.length === 0 ? (
+          <div className="p-4">
+            <ErrorFallback
+              title="Could not load screenshots"
+              message={error}
+              onRetry={onRefresh}
+            />
+          </div>
+        ) : items.length > 0 ? (
           items.map((item) => (
             <ScreenshotItem
               key={item.id}
               item={item}
               onZoom={onZoom}
               onDelete={onDelete}
+              onRetry={onRetry}
               onOpenJob={onOpenJob}
             />
           ))

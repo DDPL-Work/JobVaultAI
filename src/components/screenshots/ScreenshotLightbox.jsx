@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import SafeImage from "../common/SafeImage";
 
 export default function ScreenshotLightbox({ imageSrc, onClose }) {
   useEffect(() => {
@@ -33,10 +34,11 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
         className="relative max-h-[90vh] max-w-[90vw] cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
+        <SafeImage
           src={imageSrc}
           alt="Full Screenshot Preview"
           className="max-h-[85vh] max-w-[85vw] object-contain rounded-[6px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/10"
+          fallbackClassName="w-[320px] h-[240px] rounded-[6px] border border-white/15 bg-[#15202C] text-[#94A3B8]"
         />
       </div>
     </div>

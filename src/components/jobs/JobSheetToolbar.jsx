@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import { VAULTS, SOURCES } from "./jobsData";
 
 export default function JobSheetToolbar({
@@ -11,6 +13,22 @@ export default function JobSheetToolbar({
   onStatusChange,
   totalJobsCount,
 }) {
+  const { vaults: liveVaults, loaded: vaultsLoaded } = useSelector(
+    (state) => state.vaults || {}
+  );
+
+  const allVaults = useMemo(() => {
+    const activeNames = Array.isArray(liveVaults)
+      ? liveVaults.filter((v) => v.is_active !== false).map((v) => v.name)
+      : [];
+    const baseList =
+      vaultsLoaded || activeNames.length > 0 ? activeNames : VAULTS;
+    if (selectedVault && selectedVault !== "all" && !baseList.includes(selectedVault)) {
+      return [...baseList, selectedVault];
+    }
+    return Array.from(new Set(baseList));
+  }, [liveVaults, vaultsLoaded, selectedVault]);
+
   const statusTabs = [
     { key: "all", label: "All" },
     { key: "synced", label: "In sheet" },
@@ -39,7 +57,7 @@ export default function JobSheetToolbar({
           className="border border-[#DCE1E8] bg-white rounded-[6px] px-2.5 py-1.5 text-[0.84rem] text-[#15202C] focus:outline-none focus:border-[#9C6B12] cursor-pointer"
         >
           <option value="all">All vaults</option>
-          {VAULTS.map((vault) => (
+          {allVaults.map((vault) => (
             <option key={vault} value={vault}>
               {vault}
             </option>

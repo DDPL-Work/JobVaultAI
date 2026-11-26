@@ -12,7 +12,7 @@ export default function AiChecksPanel({
   onDedupeDaysChange,
 }) {
   return (
-    <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)] flex flex-col">
+    <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)] flex flex-col h-full">
       {/* Panel Header */}
       <div className="p-3.5 px-4 border-b border-[#DCE1E8]">
         <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[1.08rem] font-bold text-[#15202C] m-0">

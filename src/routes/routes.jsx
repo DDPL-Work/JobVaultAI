@@ -34,18 +34,36 @@ const renderPlaceholder = (title, description) => (
 );
 
 export const router = createBrowserRouter([
+  // Home route: Login page
+  {
+    path: "/",
+    element: <Login />,
+  },
+
+  // Login route directly renders Login
   {
     path: "/login",
     element: <Login />,
   },
+
+  // Production Auth Suite: 3-Step Password Reset
   {
-    path: "/",
+    path: "/forgot-password",
+    element: <Login initialMode="forgot" />,
+  },
+  {
+    path: "/verify-otp",
+    element: <Login initialMode="otp" />,
+  },
+  {
+    path: "/reset-password",
+    element: <Login initialMode="reset" />,
+  },
+
+  // Application Layout
+  {
     element: <Layout />,
     children: [
-      {
-        index: true,
-        element: <Dashboard />,
-      },
       {
         path: "dashboard",
         element: <Dashboard />,
@@ -79,8 +97,12 @@ export const router = createBrowserRouter([
         element: <SheetColumns />,
       },
       {
-        path: "ai",
+        path: "ai_reading",
         element: <AiReading />,
+      },
+      {
+        path: "ai",
+        element: <Navigate to="/ai_reading" replace />,
       },
       {
         path: "integrations",
@@ -90,10 +112,12 @@ export const router = createBrowserRouter([
         path: "activity",
         element: <ActivityLog />,
       },
-      {
-        path: "*",
-        element: <Dashboard />,
-      },
     ],
+  },
+
+  // Invalid routes redirect to Home
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
   },
 ]);

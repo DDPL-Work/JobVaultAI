@@ -15,25 +15,11 @@ Return JSON only.`;
 
 export const PROVIDERS = [
   {
-    id: "gemini",
-    name: "Google Gemini",
-    description: "Recommended. Low cost per screenshot",
-    configured: false,
-    model: "gemini-2.5-flash",
-  },
-  {
     id: "openai",
     name: "OpenAI",
     description: "GPT vision model",
     configured: false,
     model: "gpt-4o-mini",
-  },
-  {
-    id: "mock",
-    name: "Demo mode",
-    description: "Sample data, no AI key needed",
-    configured: true,
-    model: "Demo data (no AI key)",
   },
 ];
 
