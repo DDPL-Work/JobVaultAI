@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import JobSheetToolbar from "../components/jobs/JobSheetToolbar";
@@ -42,6 +42,21 @@ export default function JobSheet() {
   const [pageSize, setPageSize] = useState(8);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [tableScrollState, setTableScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
+  const tableScrollRef = useRef(null);
+
+  const handleScrollTable = (direction) => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const step = Math.max(240, Math.round(el.clientWidth * 0.45));
+    el.scrollBy({
+      left: direction === "left" ? -step : step,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => {
     dispatch(fetchJobs());
@@ -319,6 +334,10 @@ export default function JobSheet() {
           selectedStatus={selectedStatus}
           onStatusChange={handleStatusChange}
           totalJobsCount={filteredJobs.length}
+          canScrollLeft={tableScrollState.canScrollLeft}
+          canScrollRight={tableScrollState.canScrollRight}
+          onScrollLeft={() => handleScrollTable("left")}
+          onScrollRight={() => handleScrollTable("right")}
         />
 
         {/* Table */}
@@ -326,6 +345,8 @@ export default function JobSheet() {
           jobs={paginatedJobs}
           loading={loading && !loaded}
           onRowClick={(job) => setSelectedJob(job)}
+          scrollContainerRef={tableScrollRef}
+          onScrollStateChange={setTableScrollState}
         />
 
         {/* Pagination Controls */}

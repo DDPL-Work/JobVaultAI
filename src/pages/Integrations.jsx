@@ -25,13 +25,6 @@ function renderExtraPill(label, variant = "neutral") {
   );
 }
 
-function formatSyncTime(value) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  return parsed.toLocaleString();
-}
-
 export default function Integrations() {
   const dispatch = useDispatch();
   const {
@@ -47,20 +40,10 @@ export default function Integrations() {
     dispatch(fetchHealthStatus());
   }, [dispatch]);
 
-  const google = integrations?.google || {};
-  const drive = google.drive || {};
-  const sheets = google.sheets || {};
   const providers = integrations?.providers || {};
   const activeProvider = integrations?.active || "";
-
-  const driveEnabled = Boolean(drive.enabled);
-  const sheetsEnabled = Boolean(sheets.enabled);
-  const hasGoogleCreds = Boolean(google.credentials);
-  const gemini = providers.gemini || {};
   const openai = providers.openai || {};
-  const geminiConfigured = Boolean(gemini.configured);
   const openaiConfigured = Boolean(openai.configured);
-  const formattedLastSync = formatSyncTime(drive.lastSync);
 
   return (
     <div className="flex flex-col gap-5">
@@ -167,94 +150,7 @@ export default function Integrations() {
         />
       ) : (
         <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
-          {/* 1. Google Drive folder */}
-          <IntegrationItem
-            iconLetter="D"
-            iconBg="#1E8E3E"
-            title="Google Drive folder"
-            statusType={driveEnabled ? "connected" : "not_setup"}
-            statusLabel={driveEnabled ? "Connected" : "Not set up"}
-            extraPill={
-              driveEnabled && drive.pollMinutes
-                ? renderExtraPill(`Poll every ${drive.pollMinutes}m`, "neutral")
-                : hasGoogleCreds
-                ? renderExtraPill("Service account ready", "ok")
-                : null
-            }
-            description={
-              driveEnabled
-                ? formattedLastSync
-                  ? `Watching Drive folder every ${drive.pollMinutes ?? 5} minutes. Last sync: ${formattedLastSync}.`
-                  : `Watching Drive folder every ${drive.pollMinutes ?? 5} minutes for new screenshots.`
-                : undefined
-            }
-            steps={
-              driveEnabled
-                ? undefined
-                : [
-                    "Create a Google Cloud service account and download its JSON key",
-                    "Share your screenshots folder with the service account email",
-                    <>
-                      Set{" "}
-                      <code className="font-mono text-[0.76rem] text-[#15202C]">
-                        GOOGLE_SERVICE_ACCOUNT_FILE
-                      </code>{" "}
-                      and{" "}
-                      <code className="font-mono text-[0.76rem] text-[#15202C]">
-                        DRIVE_FOLDER_ID
-                      </code>{" "}
-                      in .env, then restart
-                    </>,
-                  ]
-            }
-          />
-
-          {/* 2. Google Sheets */}
-          <IntegrationItem
-            iconLetter="S"
-            iconBg="#188038"
-            title="Google Sheets"
-            statusType={sheetsEnabled ? "connected" : "not_setup"}
-            statusLabel={sheetsEnabled ? "Connected" : "Not set up"}
-            extraPill={
-              !sheetsEnabled && hasGoogleCreds
-                ? renderExtraPill("Service account ready", "ok")
-                : null
-            }
-            description={
-              sheetsEnabled
-                ? "Finished job rows sync automatically to your connected Google Sheet."
-                : undefined
-            }
-            steps={
-              sheetsEnabled
-                ? undefined
-                : [
-                    "Share your sheet with the service account email (Editor)",
-                    <>
-                      Set{" "}
-                      <code className="font-mono text-[0.76rem] text-[#15202C]">
-                        GOOGLE_SHEET_ID
-                      </code>{" "}
-                      in .env, then restart
-                    </>,
-                  ]
-            }
-            action={
-              sheetsEnabled && sheets.url ? (
-                <a
-                  href={sheets.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] rounded-[6px] px-2.5 py-1 text-[0.78rem] font-semibold text-[#15202C] transition-colors inline-block select-none"
-                >
-                  Open sheet
-                </a>
-              ) : undefined
-            }
-          />
-
-          {/* 3. Excel file */}
+          {/* 1. Excel file */}
           <IntegrationItem
             iconLetter="X"
             iconBg="#217346"
@@ -272,37 +168,7 @@ export default function Integrations() {
             }
           />
 
-          {/* 4. Google Gemini */}
-          <IntegrationItem
-            iconLetter="G"
-            iconBg="#4285F4"
-            title="Google Gemini"
-            statusType={geminiConfigured ? "connected" : "not_setup"}
-            statusLabel={geminiConfigured ? "Connected" : "Not set up"}
-            extraPill={
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {activeProvider === "gemini" && renderExtraPill("In use", "info")}
-                {gemini.model && renderExtraPill(gemini.model, "neutral")}
-              </div>
-            }
-            description={
-              geminiConfigured
-                ? `Configured with ${gemini.model || "Gemini"} in server .env to read job screenshots.`
-                : "Set GEMINI_API_KEY in .env (get one at aistudio.google.com)"
-            }
-            action={
-              geminiConfigured || activeProvider === "gemini" ? (
-                <Link
-                  to="/ai_reading"
-                  className="border border-[#DCE1E8] bg-white hover:border-[#5A6777] rounded-[6px] px-2.5 py-1 text-[0.78rem] font-semibold text-[#15202C] transition-colors inline-block select-none"
-                >
-                  AI reading
-                </Link>
-              ) : undefined
-            }
-          />
-
-          {/* 5. OpenAI */}
+          {/* 2. OpenAI */}
           <IntegrationItem
             iconLetter="O"
             iconBg="#10A37F"
