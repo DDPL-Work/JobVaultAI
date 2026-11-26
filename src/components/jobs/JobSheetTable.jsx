@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from "react";
 import { SOURCE_COLORS, getJobVaults } from "./jobsData";
 import { JobSheetTableSkeleton } from "../common/LoadingSkeletons";
 import ConfidenceMeter from "../common/ConfidenceMeter";
@@ -6,7 +7,48 @@ export default function JobSheetTable({
   jobs = [],
   loading = false,
   onRowClick,
+  scrollContainerRef,
+  onScrollStateChange,
 }) {
+  const internalScrollRef = useRef(null);
+  const tableWrapperRef = scrollContainerRef || internalScrollRef;
+
+  const syncScrollState = useCallback(() => {
+    if (!onScrollStateChange) return;
+    const el = tableWrapperRef.current;
+    if (!el) {
+      onScrollStateChange({ canScrollLeft: false, canScrollRight: false });
+      return;
+    }
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    onScrollStateChange({
+      canScrollLeft: el.scrollLeft > 2,
+      canScrollRight: maxScrollLeft > 2 && el.scrollLeft < maxScrollLeft - 2,
+    });
+  }, [onScrollStateChange, tableWrapperRef]);
+
+  useEffect(() => {
+    syncScrollState();
+    const el = tableWrapperRef.current;
+    if (!el) return;
+
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        syncScrollState();
+      });
+      observer.observe(el);
+      if (el.firstElementChild) {
+        observer.observe(el.firstElementChild);
+      }
+    }
+    window.addEventListener("resize", syncScrollState);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", syncScrollState);
+    };
+  }, [syncScrollState, tableWrapperRef, jobs, loading]);
   const getStatusPill = (status) => {
     switch (status) {
       case "synced":
@@ -63,7 +105,11 @@ export default function JobSheetTable({
   }
 
   return (
-    <div className="w-full overflow-x-auto select-none">
+    <div
+      ref={tableWrapperRef}
+      onScroll={syncScrollState}
+      className="w-full overflow-x-auto select-none"
+    >
       <table className="w-full min-w-[960px] border-collapse text-[0.84rem] text-left">
         <thead>
           <tr className="bg-[#F6F7F9] border-b border-[#DCE1E8]">

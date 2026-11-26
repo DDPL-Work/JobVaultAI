@@ -366,7 +366,7 @@ export function AiReadingSkeleton() {
   );
 }
 
-export function IntegrationsSkeleton({ rows = 5 }) {
+export function IntegrationsSkeleton({ rows = 2 }) {
   return (
     <div className="bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)] divide-y divide-[#DCE1E8]">
       {Array.from({ length: rows }).map((_, i) => (
@@ -374,14 +374,13 @@ export function IntegrationsSkeleton({ rows = 5 }) {
           <SkeletonBox className="w-[40px] h-[40px] rounded-[8px] shrink-0" />
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             <div className="flex items-center gap-2.5">
-              <SkeletonBox className="h-4 w-36" />
+              <SkeletonBox className="h-4 w-32" />
               <SkeletonBox className="h-5 w-20 rounded-full" />
               <SkeletonBox className="h-5 w-16 rounded-full" />
             </div>
             <SkeletonBox className="h-3.5 w-3/4 max-w-[420px]" />
-            {i < 2 && <SkeletonBox className="h-3.5 w-2/3 max-w-[340px]" />}
           </div>
-          {i === 2 && <SkeletonBox className="h-7 w-20 rounded-[6px] shrink-0" />}
+          <SkeletonBox className="h-7 w-20 rounded-[6px] shrink-0" />
         </div>
       ))}
     </div>
