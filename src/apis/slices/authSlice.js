@@ -64,7 +64,14 @@ const authSlice = createSlice({
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
         state.checkingUser = false;
-        state.user = action.payload;
+        const nextUser = action.payload;
+        if (
+          nextUser &&
+          typeof nextUser === "object" &&
+          (nextUser.username || nextUser.name || nextUser.email)
+        ) {
+          state.user = { ...(state.user || {}), ...nextUser };
+        }
         state.isAuthenticated = Boolean(getAccessToken() || state.token);
       })
       .addCase(fetchCurrentUser.rejected, (state) => {

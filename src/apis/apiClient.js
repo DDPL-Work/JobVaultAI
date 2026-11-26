@@ -35,13 +35,13 @@ export function setAuthSession({ access, refresh, user }) {
   if (refresh) sessionStorage.setItem(TOKEN_KEYS.REFRESH, refresh);
   if (user) sessionStorage.setItem(TOKEN_KEYS.USER, JSON.stringify(user));
 
-  // Ensure legacy sessionStorage auth keys are cleaned up
+  // Ensure legacy localStorage auth keys are cleaned up
   try {
-    sessionStorage.removeItem(TOKEN_KEYS.ACCESS);
-    sessionStorage.removeItem(TOKEN_KEYS.REFRESH);
-    sessionStorage.removeItem(TOKEN_KEYS.USER);
-    sessionStorage.removeItem("jobvault_auth");
-    sessionStorage.removeItem("jv_token");
+    localStorage.removeItem(TOKEN_KEYS.ACCESS);
+    localStorage.removeItem(TOKEN_KEYS.REFRESH);
+    localStorage.removeItem(TOKEN_KEYS.USER);
+    localStorage.removeItem("jobvault_auth");
+    localStorage.removeItem("jv_token");
   } catch {
     // ignore
   }
@@ -55,11 +55,11 @@ export function clearAuthSession() {
   sessionStorage.removeItem("jv_token");
 
   try {
-    sessionStorage.removeItem(TOKEN_KEYS.ACCESS);
-    sessionStorage.removeItem(TOKEN_KEYS.REFRESH);
-    sessionStorage.removeItem(TOKEN_KEYS.USER);
-    sessionStorage.removeItem("jobvault_auth");
-    sessionStorage.removeItem("jv_token");
+    localStorage.removeItem(TOKEN_KEYS.ACCESS);
+    localStorage.removeItem(TOKEN_KEYS.REFRESH);
+    localStorage.removeItem(TOKEN_KEYS.USER);
+    localStorage.removeItem("jobvault_auth");
+    localStorage.removeItem("jv_token");
   } catch {
     // ignore
   }
@@ -96,8 +96,13 @@ async function refreshAccessToken() {
   });
 
   if (!response.ok) {
-    clearAuthSession();
-    throw new Error("Session expired. Please log in again.");
+    const expired = response.status === 401 || response.status === 403;
+    if (expired) {
+      clearAuthSession();
+    }
+    const err = new Error("Session expired. Please log in again.");
+    err.sessionExpired = expired;
+    throw err;
   }
 
   const data = await response.json();
@@ -181,7 +186,9 @@ export async function apiClient(endpoint, options = {}) {
         return fetch(url, { ...config, headers: requestHeaders }).then(handleResponse);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
-        window.dispatchEvent(new CustomEvent("jv:auth-expired"));
+        if (refreshErr?.sessionExpired) {
+          window.dispatchEvent(new CustomEvent("jv:auth-expired"));
+        }
         throw refreshErr;
       } finally {
         isRefreshing = false;

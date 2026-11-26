@@ -57,13 +57,13 @@ export default function ScreenshotUploadZone({ onFilesSelected, uploadingProgres
   };
 
   return (
-    <div className="bg-white border border-[#DCE1E8] rounded-[8px] p-4 shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
+    <div className="w-full min-w-0 bg-white border border-[#DCE1E8] rounded-[8px] p-3 sm:p-4 shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
       <label
         htmlFor="screenshot-file-input"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-[8px] py-[28px] px-4 text-center flex flex-col gap-2 items-center cursor-pointer transition-colors duration-150 select-none ${
+        className={`w-full border-2 border-dashed rounded-[8px] py-5 px-3 sm:py-[28px] sm:px-4 text-center flex flex-col gap-2 items-center cursor-pointer transition-colors duration-150 select-none ${
           isDragging
             ? "border-[#9C6B12] bg-[#F5EAD3]"
             : combineMode
@@ -96,7 +96,7 @@ export default function ScreenshotUploadZone({ onFilesSelected, uploadingProgres
         <span className="text-[#5A6777] text-[0.78rem]">
           {combineMode
             ? "Combine 1–4 elongated/scrolled screenshot parts into 1 single job listing"
-            : "PNG, JPG, WEBP, PDF (auto-split at ~144 DPI) · up to 500 files at a time · Ctrl+V supported"}
+            : "PNG, JPG, WEBP, PDF · Supports drag & drop · Ctrl+V supported"}
         </span>
 
         {/* Format Badges */}

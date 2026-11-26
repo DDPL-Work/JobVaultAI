@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { SOURCE_COLORS, VAULTS, getJobVaults } from "./jobsData";
 import SafeImage from "../common/SafeImage";
+import ConfidenceMeter from "../common/ConfidenceMeter";
 import { generateJobContent } from "../../apis/thunks/jobsThunks";
 
 /**
@@ -159,6 +160,9 @@ export default function JobDetailDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // AI Social Media Generator states
+  const [socialModalOpen, setSocialModalOpen] = useState(false);
+  const [socialModalClosing, setSocialModalClosing] = useState(false);
+  const [hasLoadedLiveSocial, setHasLoadedLiveSocial] = useState(false);
   const [socialPlatform, setSocialPlatform] = useState("linkedin"); // "linkedin" | "instagram"
   const [socialPosts, setSocialPosts] = useState(() => generateSocialPosts(job));
   const [socialEngine, setSocialEngine] = useState("");
@@ -188,6 +192,15 @@ export default function JobDetailDrawer({
     }, 260);
   }, [isClosing, onClose]);
 
+  const handleCloseSocialModal = useCallback(() => {
+    if (!socialModalOpen || socialModalClosing) return;
+    setSocialModalClosing(true);
+    setTimeout(() => {
+      setSocialModalOpen(false);
+      setSocialModalClosing(false);
+    }, 130);
+  }, [socialModalOpen, socialModalClosing]);
+
   // Synchronize incoming job prop with internal mounting, closing, and social states
   useEffect(() => {
     if (job) {
@@ -195,6 +208,9 @@ export default function JobDetailDrawer({
       setIsClosing(false);
       setIsEditing(false);
       setFormFields({ ...job });
+      setSocialModalOpen(false);
+      setSocialModalClosing(false);
+      setHasLoadedLiveSocial(false);
       setSocialPosts(generateSocialPosts(job));
       setSocialEngine("");
       setCopiedPlatform(null);
@@ -209,19 +225,23 @@ export default function JobDetailDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job]);
 
-  // Handle escape key
+  // Handle escape key (closes Social Post modal first, then drawer)
   useEffect(() => {
     if (!mountedJob) return;
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
+        if (socialModalOpen) {
+          handleCloseSocialModal();
+          return;
+        }
         handleClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mountedJob, handleClose]);
+  }, [mountedJob, socialModalOpen, handleCloseSocialModal, handleClose]);
 
   const handleStatus = async (newStatus) => {
     if (!mountedJob || isSubmitting) return;
@@ -282,7 +302,7 @@ export default function JobDetailDrawer({
   };
 
   // Regenerate Social Media Content via live POST /api/jobs/<pk>/generate-content/
-  const handleRegenerateSocial = async () => {
+  const handleRegenerateSocial = async ({ silentToast = false } = {}) => {
     const targetJob = mountedJob || job;
     if (!targetJob) return;
     setIsRegenerating(true);
@@ -299,11 +319,14 @@ export default function JobDetailDrawer({
           hashtags: normalizeHashtags(content.hashtags),
         });
         setSocialEngine(data.engine || "");
-        toast.success(
-          data.engine
-            ? `AI Social Posts regenerated (${data.engine})`
-            : "AI Social Posts regenerated!"
-        );
+        setHasLoadedLiveSocial(true);
+        if (!silentToast) {
+          toast.success(
+            data.engine
+              ? `AI Social Posts regenerated (${data.engine})`
+              : "AI Social Posts regenerated!"
+          );
+        }
         setIsRegenerating(false);
         return;
       }
@@ -317,8 +340,18 @@ export default function JobDetailDrawer({
     });
     setSocialPosts(regenerated);
     setSocialEngine("");
+    setHasLoadedLiveSocial(true);
     setIsRegenerating(false);
-    toast.info("Generated social posts locally (server AI unavailable)");
+    if (!silentToast) {
+      toast.info("Generated social posts locally (server AI unavailable)");
+    }
+  };
+
+  const handleOpenSocialModal = () => {
+    setSocialModalOpen(true);
+    if (!hasLoadedLiveSocial && !isRegenerating) {
+      handleRegenerateSocial({ silentToast: true });
+    }
   };
 
   if (!mountedJob && !job) return null;
@@ -366,9 +399,6 @@ export default function JobDetailDrawer({
   };
 
   const pill = getStatusPill(activeJob.status);
-  const confPercent = Math.round((activeJob.confidence || 0) * 100);
-  const confColor =
-    confPercent >= 80 ? "#24734A" : confPercent >= 60 ? "#9A5B00" : "#A8281F";
   const sourceColor =
     SOURCE_COLORS[activeJob.source_app] ||
     SOURCE_COLORS[activeJob.source] ||
@@ -406,13 +436,6 @@ export default function JobDetailDrawer({
     }
   };
 
-  const getEvidenceText = (key) => {
-    const ev = activeJob.evidence || {};
-    if (key === "experience") return ev.exp || ev.experience;
-    if (key === "other_details") return ev.details || ev.other_details;
-    return ev[key];
-  };
-
   return (
     <div
       className={`fixed inset-0 z-50 select-none overflow-hidden ${
@@ -436,6 +459,40 @@ export default function JobDetailDrawer({
         @keyframes jvScrimFadeOut {
           0% { opacity: 1; }
           100% { opacity: 0; }
+        }
+        @keyframes jvModalPopIn {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 6px, 0) scale(0.97);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+        }
+        @keyframes jvModalPopOut {
+          0% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(0, 4px, 0) scale(0.97);
+          }
+        }
+        .jv-modal-in {
+          animation: jvModalPopIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          will-change: transform, opacity;
+        }
+        .jv-modal-out {
+          animation: jvModalPopOut 130ms cubic-bezier(0.4, 0, 1, 1) forwards;
+          will-change: transform, opacity;
+        }
+        .jv-modal-scrim-in {
+          animation: jvScrimFadeIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .jv-modal-scrim-out {
+          animation: jvScrimFadeOut 130ms ease-out forwards;
         }
         .jv-scrim-in {
           animation: jvScrimFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -484,21 +541,12 @@ export default function JobDetailDrawer({
                 {pill.label}
               </span>
               {/* AI Confidence Meter */}
-              <span
-                className="inline-flex items-center gap-1.5 font-['IBM_Plex_Mono',monospace] text-[0.78rem] text-[#5A6777]"
-                title="AI confidence"
-              >
-                <span className="w-[38px] h-[5px] bg-[#F6F7F9] rounded-[3px] border border-[#DCE1E8] overflow-hidden inline-block align-middle">
-                  <i
-                    className="block h-full transition-all duration-300"
-                    style={{
-                      width: `${confPercent}%`,
-                      backgroundColor: confColor,
-                    }}
-                  />
-                </span>
-                <span>{confPercent}%</span>
-              </span>
+              <ConfidenceMeter
+                confidence={activeJob.confidence}
+                animKey={activeJob.id}
+                textClassName="text-[#5A6777]"
+                titlePrefix="AI confidence"
+              />
             </div>
             <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[1.3rem] font-bold text-[#15202C] mt-1.5 leading-snug">
               {activeJob.title || "Untitled"}
@@ -579,11 +627,6 @@ export default function JobDetailDrawer({
                   </span>
                 );
               })}
-              {getJobVaults(activeJob).length > 1 && (
-                <span className="text-[0.7rem] bg-[#FBEBCF] border border-[#F1D196] text-[#9A5B00] px-1.5 py-0.5 rounded-[4px] font-medium">
-                  ⚡ Dual-Routed
-                </span>
-              )}
               <span className="inline-flex items-center gap-1.5 font-semibold text-[#15202C]">
                 <i
                   className="w-2 h-2 rounded-[2px]"
@@ -620,8 +663,6 @@ export default function JobDetailDrawer({
             <form onSubmit={handleSave} className="flex flex-col gap-3.5 pt-1">
               {fieldDefs.map(({ key, label }) => {
                 const val = formFields[key] ?? activeJob[key] ?? "";
-                const evText = getEvidenceText(key);
-                const hasEvidence = Boolean(evText);
                 const isFieldEmpty = !val || val === "—";
 
                 return (
@@ -668,25 +709,6 @@ export default function JobDetailDrawer({
                         {val || "—"}
                       </div>
                     )}
-
-                    {/* Evidence Footnote (omitted for Country matching dashboard.html) */}
-                    {key !== "country" && (
-                      <span
-                        className={`text-[0.72rem] font-['IBM_Plex_Mono',monospace] truncate ${
-                          hasEvidence
-                            ? "text-[#5A6777]"
-                            : isFieldEmpty
-                            ? "text-[#9A5B00]"
-                            : "text-[#5A6777]"
-                        }`}
-                      >
-                        {hasEvidence
-                          ? `from image: “${evText}”`
-                          : !isFieldEmpty
-                          ? "edited by you"
-                          : "not in the image"}
-                      </span>
-                    )}
                   </div>
                 );
               })}
@@ -715,202 +737,6 @@ export default function JobDetailDrawer({
                 </div>
               )}
             </form>
-
-            {/* AI Social Media Content Generator (LinkedIn & Instagram) */}
-            <div className="mt-3 pt-4 border-t border-[#DCE1E8] flex flex-col gap-3">
-              {/* Generator Section Header */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <div className="w-[26px] h-[26px] rounded-[6px] bg-gradient-to-tr from-[#9C6B12] to-[#E0A838] text-white flex items-center justify-center font-bold text-[0.78rem] shadow-xs shrink-0">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 fill-current"
-                    >
-                      <path d="M12 2l2.4 7.2L22 10l-6 4.8 2.3 7.2-6.3-4.5-6.3 4.5 2.3-7.2-6-4.8 7.6-.8z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[0.96rem] font-bold text-[#15202C] m-0 leading-tight">
-                      AI Social Post Generator
-                    </h3>
-                    <span className="text-[0.7rem] text-[#5A6777]">
-                      {socialEngine
-                        ? `Generated live via ${socialEngine}`
-                        : "Auto-crafted from screenshot OCR & job attributes"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Regenerate Button */}
-                <button
-                  type="button"
-                  onClick={handleRegenerateSocial}
-                  disabled={isRegenerating}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[0.75rem] font-semibold rounded-[5px] border border-[#DCE1E8] bg-white hover:bg-[#F6F7F9] text-[#15202C] transition-all cursor-pointer disabled:opacity-50 select-none shadow-2xs"
-                  title="Regenerate with AI"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className={`w-3.5 h-3.5 stroke-current fill-none stroke-[2] ${
-                      isRegenerating ? "animate-spin text-[#9C6B12]" : ""
-                    }`}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  <span>{isRegenerating ? "Generating..." : "Regenerate"}</span>
-                </button>
-              </div>
-
-              {/* Platform Selector Tabs: LinkedIn vs Instagram */}
-              <div className="flex items-center gap-2 border-b border-[#E2E8F0] pb-2">
-                {/* LinkedIn Tab */}
-                <button
-                  type="button"
-                  onClick={() => setSocialPlatform("linkedin")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[0.78rem] font-semibold transition-all cursor-pointer select-none ${
-                    socialPlatform === "linkedin"
-                      ? "bg-[#E8F3FF] text-[#0A66C2] border border-[#B8D8F8] shadow-2xs"
-                      : "text-[#5A6777] hover:text-[#15202C] hover:bg-[#F6F7F9] border border-transparent"
-                  }`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-3.5 h-3.5 fill-[#0A66C2]"
-                  >
-                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28m1.4 9.74v-8.37H5.06v8.37h2.8z" />
-                  </svg>
-                  <span>LinkedIn Post</span>
-                  <span className="text-[0.62rem] bg-[#0A66C2]/15 text-[#0A66C2] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
-                    Professional
-                  </span>
-                </button>
-
-                {/* Instagram Tab */}
-                <button
-                  type="button"
-                  onClick={() => setSocialPlatform("instagram")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[0.78rem] font-semibold transition-all cursor-pointer select-none ${
-                    socialPlatform === "instagram"
-                      ? "bg-[#FDF2F4] text-[#D6336C] border border-[#F9CCD5] shadow-2xs"
-                      : "text-[#5A6777] hover:text-[#15202C] hover:bg-[#F6F7F9] border border-transparent"
-                  }`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-3.5 h-3.5 fill-[#D6336C]"
-                  >
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                  </svg>
-                  <span>Instagram Caption</span>
-                  <span className="text-[0.62rem] bg-[#D6336C]/15 text-[#D6336C] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
-                    Engaging
-                  </span>
-                </button>
-              </div>
-
-              {/* Editable Post Preview Textarea */}
-              <div className="relative flex flex-col bg-[#FAFBFD] border border-[#DCE1E8] rounded-[8px] p-3 shadow-2xs">
-                <div className="flex items-center justify-between text-[0.72rem] text-[#5A6777] mb-1.5">
-                  <span className="font-semibold text-[#15202C]">
-                    {socialPlatform === "linkedin"
-                      ? "LinkedIn Post Content"
-                      : "Instagram Caption Content"}
-                  </span>
-                  <span className="font-mono text-[0.68rem]">
-                    {socialPlatform === "linkedin"
-                      ? `${socialPosts.linkedin?.length || 0} characters`
-                      : `${socialPosts.instagram?.length || 0} characters`}
-                  </span>
-                </div>
-
-                <textarea
-                  rows={8}
-                  value={
-                    socialPlatform === "linkedin"
-                      ? socialPosts.linkedin
-                      : socialPosts.instagram
-                  }
-                  onChange={(e) => {
-                    const text = e.target.value;
-                    setSocialPosts((prev) => ({
-                      ...prev,
-                      [socialPlatform]: text,
-                    }));
-                  }}
-                  placeholder="Generating social post content..."
-                  className="w-full bg-white border border-[#DCE1E8] rounded-[6px] p-3 text-[0.8rem] text-[#15202C] leading-relaxed resize-y focus:outline-none focus:border-[#9C6B12] focus:ring-1 focus:ring-[#9C6B12] font-normal transition-all"
-                />
-
-                {/* Hashtags Preview Bar */}
-                <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className="text-[0.68rem] text-[#5A6777] font-semibold mr-1">
-                      Hashtags:
-                    </span>
-                    {(socialPlatform === "linkedin"
-                      ? socialPosts.hashtags?.linkedin
-                      : socialPosts.hashtags?.instagram
-                    )?.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="font-mono text-[0.66rem] bg-white border border-[#DCE1E8] rounded-[4px] px-1.5 py-0.5 text-[#5A6777]"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* 1-Click Copy Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleCopySocialPost(socialPlatform)}
-                    className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[6px] font-semibold text-[0.8rem] transition-all cursor-pointer shadow-sm select-none ${
-                      copiedPlatform === socialPlatform
-                        ? "bg-[#24734A] text-white"
-                        : socialPlatform === "linkedin"
-                        ? "bg-[#0A66C2] hover:bg-[#084e96] text-white"
-                        : "bg-gradient-to-r from-[#D6336C] to-[#E1306C] hover:opacity-95 text-white"
-                    }`}
-                  >
-                    {copiedPlatform === socialPlatform ? (
-                      <>
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        <span>Copied to Clipboard!</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="w-3.5 h-3.5 stroke-current fill-none stroke-[2]"
-                        >
-                          <rect x="9" y="9" width="13" height="13" rx="2" />
-                          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                        </svg>
-                        <span>
-                          Copy{" "}
-                          {socialPlatform === "linkedin"
-                            ? "LinkedIn Post"
-                            : "Instagram Caption"}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -940,7 +766,20 @@ export default function JobDetailDrawer({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Social Post Modal Trigger Button */}
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleOpenSocialModal}
+              className="inline-flex items-center gap-1.5 border border-[#E5C98E] bg-[#FAF4E8] hover:bg-[#F5EAD3] text-[#9C6B12] text-[0.82rem] font-semibold px-3.5 py-1.5 rounded-[6px] transition-colors cursor-pointer select-none disabled:opacity-50"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current shrink-0">
+                <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm7 12l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14z" />
+              </svg>
+              <span>Social Post</span>
+            </button>
+
             {!isEditing ? (
               <button
                 type="button"
@@ -974,6 +813,248 @@ export default function JobDetailDrawer({
           </div>
         </div>
       </aside>
+
+      {/* Rounded AI Social Post Generator Modal */}
+      {socialModalOpen && (
+        <div
+          className={`fixed inset-0 z-[60] bg-[#0A0F14]/55 backdrop-blur-[2px] flex items-center justify-center p-4 ${
+            socialModalClosing
+              ? "jv-modal-scrim-out pointer-events-none"
+              : "jv-modal-scrim-in pointer-events-auto"
+          }`}
+          onClick={handleCloseSocialModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="AI Social Post Generator"
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-[780px] bg-white border border-[#DCE1E8] rounded-[8px] shadow-[0_24px_60px_rgba(15,23,42,0.28)] overflow-hidden flex flex-col max-h-[90vh] ${
+              socialModalClosing ? "jv-modal-out" : "jv-modal-in"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="p-4 px-5 border-b border-[#DCE1E8] flex items-start justify-between gap-3 shrink-0 bg-white">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-[30px] h-[30px] rounded-[6px] bg-gradient-to-tr from-[#9C6B12] to-[#E0A838] text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                    <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm7 12l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[1.08rem] font-bold text-[#15202C] m-0 leading-tight">
+                    AI Social Post Generator
+                  </h3>
+                  <span className="text-[0.76rem] text-[#5A6777] block mt-0.5">
+                    {socialEngine
+                      ? `Generated live via ${socialEngine}`
+                      : "Auto-generated from screenshot & job data for LinkedIn & Instagram"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseSocialModal}
+                aria-label="Close Social Post modal"
+                className="w-8 h-8 rounded-[6px] border border-[#DCE1E8] bg-white hover:bg-[#F6F7F9] text-[#5A6777] hover:text-[#15202C] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4 stroke-current fill-none stroke-[2]"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Platform Tabs + Regenerate Row */}
+            <div className="px-5 py-3 bg-white border-b border-[#DCE1E8] flex items-center justify-between gap-3 flex-wrap shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setSocialPlatform("linkedin")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[0.78rem] font-semibold transition-all cursor-pointer select-none ${
+                    socialPlatform === "linkedin"
+                      ? "bg-[#E8F3FF] text-[#0A66C2] border border-[#B8D8F8] shadow-2xs"
+                      : "text-[#5A6777] hover:text-[#15202C] hover:bg-[#F6F7F9] border border-transparent"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#0A66C2]">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28m1.4 9.74v-8.37H5.06v8.37h2.8z" />
+                  </svg>
+                  <span>LinkedIn Post</span>
+                  <span className="text-[0.62rem] bg-[#0A66C2]/15 text-[#0A66C2] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                    Professional
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSocialPlatform("instagram")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[0.78rem] font-semibold transition-all cursor-pointer select-none ${
+                    socialPlatform === "instagram"
+                      ? "bg-[#FDF2F4] text-[#D6336C] border border-[#F9CCD5] shadow-2xs"
+                      : "text-[#5A6777] hover:text-[#15202C] hover:bg-[#F6F7F9] border border-transparent"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#D6336C]">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                  </svg>
+                  <span>Instagram Caption</span>
+                  <span className="text-[0.62rem] bg-[#D6336C]/15 text-[#D6336C] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                    Engaging
+                  </span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleRegenerateSocial()}
+                disabled={isRegenerating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.76rem] font-semibold rounded-[6px] border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] transition-all cursor-pointer disabled:opacity-50 select-none shadow-2xs"
+                title="Regenerate with AI"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`w-3.5 h-3.5 stroke-current fill-none stroke-[2] ${
+                    isRegenerating ? "animate-spin text-[#9C6B12]" : ""
+                  }`}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                <span>{isRegenerating ? "Generating..." : "Regenerate"}</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-3">
+              {isRegenerating ? (
+                <div className="min-h-[220px] flex flex-col items-center justify-center gap-2.5 text-center text-[#5A6777]">
+                  <span className="w-6 h-6 rounded-full border-2 border-[#DCE1E8] border-t-[#9C6B12] animate-spin" />
+                  <span className="text-[0.84rem] font-medium">
+                    AI is reading job details &amp; drafting social posts...
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-[0.74rem] text-[#5A6777]">
+                    <span className="font-semibold text-[#15202C]">
+                      {socialPlatform === "linkedin"
+                        ? "LinkedIn Post Content"
+                        : "Instagram Caption Content"}
+                    </span>
+                    <span className="font-mono text-[0.7rem]">
+                      {socialPlatform === "linkedin"
+                        ? `${socialPosts.linkedin?.length || 0} characters`
+                        : `${socialPosts.instagram?.length || 0} characters`}
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={10}
+                    value={
+                      socialPlatform === "linkedin"
+                        ? socialPosts.linkedin
+                        : socialPosts.instagram
+                    }
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setSocialPosts((prev) => ({
+                        ...prev,
+                        [socialPlatform]: text,
+                      }));
+                    }}
+                    placeholder="Social post content..."
+                    className="w-full bg-[#FAFBFD] border border-[#DCE1E8] rounded-[6px] p-3.5 text-[0.82rem] text-[#15202C] leading-relaxed resize-y focus:outline-none focus:border-[#9C6B12] focus:ring-1 focus:ring-[#9C6B12] font-normal transition-all"
+                  />
+
+                  {/* Hashtags Bar */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="text-[0.7rem] text-[#5A6777] font-semibold mr-1">
+                      Hashtags:
+                    </span>
+                    {(socialPlatform === "linkedin"
+                      ? socialPosts.hashtags?.linkedin
+                      : socialPosts.hashtags?.instagram
+                    )?.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="font-mono text-[0.68rem] bg-[#F6F7F9] border border-[#DCE1E8] rounded-[4px] px-2 py-0.5 text-[#5A6777]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3.5 border-t border-[#DCE1E8] bg-white flex items-center justify-between gap-3 flex-wrap shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseSocialModal}
+                className="border border-[#DCE1E8] bg-white hover:bg-[#F6F7F9] text-[#15202C] text-[0.82rem] font-semibold px-3.5 py-1.5 rounded-[6px] transition-colors cursor-pointer select-none"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                disabled={isRegenerating}
+                onClick={() => handleCopySocialPost(socialPlatform)}
+                className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-[6px] font-semibold text-[0.82rem] transition-all cursor-pointer shadow-sm select-none disabled:opacity-50 ${
+                  copiedPlatform === socialPlatform
+                    ? "bg-[#24734A] text-white"
+                    : socialPlatform === "linkedin"
+                    ? "bg-[#0A66C2] hover:bg-[#084e96] text-white"
+                    : "bg-gradient-to-r from-[#D6336C] to-[#E1306C] hover:opacity-95 text-white"
+                }`}
+              >
+                {copiedPlatform === socialPlatform ? (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span>Copied to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-3.5 h-3.5 stroke-current fill-none stroke-[2]"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                    <span>
+                      {socialPlatform === "linkedin"
+                        ? "Copy for LinkedIn"
+                        : "Copy for Instagram"}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

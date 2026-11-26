@@ -1,5 +1,35 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import apiClient, { setAuthSession, clearAuthSession } from "../apiClient";
+import apiClient, {
+  setAuthSession,
+  clearAuthSession,
+  getUser,
+} from "../apiClient";
+
+function extractUserProfile(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const candidates = [
+    raw.user,
+    raw.data?.user,
+    raw.data,
+    raw.admin,
+    raw.profile,
+    raw,
+  ];
+  const found = candidates.find(
+    (c) =>
+      c &&
+      typeof c === "object" &&
+      !Array.isArray(c) &&
+      (c.username || c.email || c.name || c.full_name)
+  );
+  if (!found) return null;
+  return {
+    ...found,
+    username: found.username || found.name || found.full_name || "",
+    email: found.email || "",
+    role: found.role || "ADMIN",
+  };
+}
 
 export const loginUser = createAsyncThunk(
   "auth/loginUser",
@@ -16,17 +46,35 @@ export const loginUser = createAsyncThunk(
         requiresAuth: false,
       });
 
-      const access = data.access || data.token || data.tokens?.access;
-      const refresh = data.refresh || data.tokens?.refresh;
-      const user = data.user || {
-        email: data.email || (isEmail ? cleanUser : ""),
-        username: data.username || cleanUser.split("@")[0],
-        role: data.role || "ADMIN",
+      const access =
+        data?.access ||
+        data?.access_token ||
+        data?.token ||
+        data?.jwt ||
+        data?.key ||
+        data?.tokens?.access ||
+        data?.tokens?.access_token ||
+        data?.data?.access ||
+        data?.data?.access_token ||
+        data?.data?.token ||
+        data?.data?.tokens?.access ||
+        "";
+      const refresh =
+        data?.refresh ||
+        data?.refresh_token ||
+        data?.tokens?.refresh ||
+        data?.tokens?.refresh_token ||
+        data?.data?.refresh ||
+        data?.data?.tokens?.refresh ||
+        "";
+      const parsedUser = extractUserProfile(data);
+      const user = parsedUser || {
+        email: data?.email || (isEmail ? cleanUser : ""),
+        username: data?.username || cleanUser.split("@")[0],
+        role: data?.role || "ADMIN",
       };
 
-      if (access) {
-        setAuthSession({ access, refresh, user });
-      }
+      setAuthSession({ access, refresh, user });
 
       return { access, refresh, user, raw: data };
     } catch (err) {
@@ -56,11 +104,14 @@ export const fetchCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const data = await apiClient.get("/api/auth/me/");
-      const userData = data?.user || data;
-      if (userData && typeof userData === "object") {
-        setAuthSession({ user: userData });
+      const parsed = extractUserProfile(data);
+      const cached = getUser();
+      if (parsed) {
+        const merged = { ...(cached || {}), ...parsed };
+        setAuthSession({ user: merged });
+        return merged;
       }
-      return userData;
+      return cached;
     } catch (err) {
       return rejectWithValue(err.message || "Failed to fetch user profile");
     }

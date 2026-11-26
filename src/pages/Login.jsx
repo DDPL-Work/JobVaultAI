@@ -94,14 +94,6 @@ export default function Login({ initialMode = "login" }) {
         loginUser({ username: cleanUser, email: cleanUser, password })
       ).unwrap();
 
-      try {
-        sessionStorage.setItem("jobvault_auth", "true");
-        sessionStorage.setItem("jv_token", result.access || "");
-        sessionStorage.removeItem("jobvault_auth");
-        sessionStorage.removeItem("jv_token");
-      } catch {
-        // ignore
-      }
       toast.success(result.raw?.message || "Signed in successfully!");
       navigate("/dashboard");
     } catch (err) {

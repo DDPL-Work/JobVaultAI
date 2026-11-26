@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
-import { FiSun, FiMoon } from "react-icons/fi";
+import { FiSun, FiMoon, FiX } from "react-icons/fi";
 import { LuPanelLeftClose, LuPanelLeftOpen } from "react-icons/lu";
 import { logoutUser } from "../../apis/thunks/authThunks";
 import { fetchHealthStatus } from "../../apis/thunks/dashboardThunks";
@@ -19,6 +20,7 @@ function SidebarNavItem({
   badgeVariant = "default",
   end = false,
   isCollapsed = false,
+  onNavigate,
 }) {
   const badgeClasses =
     badgeVariant === "info"
@@ -30,6 +32,7 @@ function SidebarNavItem({
       to={to}
       end={end}
       title={label}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `group relative flex items-center ${
           isCollapsed
@@ -39,7 +42,7 @@ function SidebarNavItem({
           isActive
             ? isCollapsed
               ? "bg-[#26333F] text-white shadow-[inset_3px_0_0_#9C6B12]"
-              : "bg-[#26333F] text-white shadow-[inset_3px_0_0_#9C6B12] max-[900px]:shadow-[inset_0_-2px_0_#9C6B12]"
+              : "bg-[#26333F] text-white shadow-[inset_3px_0_0_#9C6B12]"
             : "text-[#C9D2DD] hover:bg-[#26333F] hover:text-white"
         }`
       }
@@ -103,9 +106,9 @@ function SidebarNavItem({
  */
 function SidebarNavGroup({ label, children, isCollapsed = false }) {
   return (
-    <nav className={`flex flex-col ${isCollapsed ? "gap-[2px]" : "gap-[2.5px]"} max-[900px]:flex-row shrink-0`} aria-label={label}>
+    <nav className={`flex flex-col ${isCollapsed ? "gap-[2px]" : "gap-[2.5px]"} shrink-0`} aria-label={label}>
       {label && !isCollapsed && (
-        <div className="text-[#C9D2DD] opacity-70 px-2.5 pb-1 text-[0.68rem] uppercase tracking-[0.08em] font-semibold select-none max-[900px]:hidden">
+        <div className="text-[#C9D2DD] opacity-70 px-2.5 pb-1 text-[0.68rem] uppercase tracking-[0.08em] font-semibold select-none">
           {label}
         </div>
       )}
@@ -125,6 +128,7 @@ function SidebarBrand({
   onToggleCollapse,
   isDark = false,
   onToggleTheme = () => {},
+  onCloseMobile = () => {},
 }) {
   if (isCollapsed) {
     return (
@@ -200,7 +204,7 @@ function SidebarBrand({
           )}
         </button>
 
-        {/* Sidebar Collapse Icon Button (React Icon) */}
+        {/* Sidebar Collapse Icon Button (Desktop) */}
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -209,6 +213,17 @@ function SidebarBrand({
           className="hidden min-[901px]:flex items-center justify-center w-7 h-7 rounded-[6px] text-[#C9D2DD] hover:text-white hover:bg-[#26333F] border border-[#26333F] hover:border-[#3b4c5c] transition-all cursor-pointer shrink-0"
         >
           <LuPanelLeftClose className="w-4 h-4" />
+        </button>
+
+        {/* Close Drawer Button (Mobile Only) */}
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          title="Close menu"
+          aria-label="Close navigation menu"
+          className="flex min-[901px]:hidden items-center justify-center w-7 h-7 rounded-[6px] text-[#C9D2DD] hover:text-white hover:bg-[#26333F] border border-[#26333F] transition-all cursor-pointer shrink-0"
+        >
+          <FiX className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -220,7 +235,7 @@ function SidebarBrand({
  */
 function SidebarFooter({
   aiReader = "demo mode",
-  processingCount = 0,
+  // processingCount = 0,
   isCollapsed = false,
   isDark = false,
   onToggleTheme = () => {},
@@ -229,7 +244,11 @@ function SidebarFooter({
   const reduxUser = useSelector((state) => state.auth?.user);
   const health = useSelector((state) => state.dashboard?.health);
   const storedUser = getUser();
-  const currentUser = reduxUser || storedUser || {};
+  const hasIdentity = (u) => Boolean(u && (u.username || u.name || u.email));
+  const currentUser =
+    (hasIdentity(reduxUser) ? reduxUser : null) ||
+    (hasIdentity(storedUser) ? storedUser : null) ||
+    {};
   const currentEmail = currentUser.email || "admin@company.com";
   const currentUsername = currentUser.username || currentUser.name || "Admin User";
   const currentRole = currentUser.role || "ADMIN";
@@ -242,21 +261,26 @@ function SidebarFooter({
   const popoverRef = useRef(null);
   const navigate = useNavigate();
 
-  // Toggle popover and compute its fixed coordinates so it never gets clipped
+  // Toggle popover and compute its fixed viewport coordinates (rendered via Portal)
   const handleToggle = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const maxAllowedWidth = Math.max(220, window.innerWidth - 24);
       if (isCollapsed) {
+        const width = Math.min(272, maxAllowedWidth);
+        const left = Math.min(rect.right + 12, window.innerWidth - width - 12);
         setPopoverPos({
           bottom: Math.max(16, window.innerHeight - rect.bottom),
-          left: rect.right + 12,
-          width: 260,
+          left: Math.max(12, left),
+          width,
         });
       } else {
+        const width = Math.min(Math.max(rect.width, 264), maxAllowedWidth);
+        const left = Math.min(rect.left, window.innerWidth - width - 12);
         setPopoverPos({
           bottom: Math.max(16, window.innerHeight - rect.top + 8),
-          left: rect.left,
-          width: Math.max(rect.width, 240),
+          left: Math.max(12, left),
+          width,
         });
       }
     }
@@ -310,8 +334,8 @@ function SidebarFooter({
     try {
       sessionStorage.removeItem("jv_token");
       sessionStorage.removeItem("jobvault_auth");
-      sessionStorage.removeItem("jv_token");
-      sessionStorage.removeItem("jobvault_auth");
+      localStorage.removeItem("jv_token");
+      localStorage.removeItem("jobvault_auth");
       sessionStorage.setItem("jv_signed_out", "true");
     } catch {
       // ignore
@@ -321,21 +345,20 @@ function SidebarFooter({
     navigate("/", { state: { fromSignOut: true }, replace: true });
   };
 
-  return (
-    <div className="mt-auto shrink-0 select-none max-[900px]:hidden">
-      {/* 1. Global Fixed Popover Menu (White Theme) */}
-      {isOpen && (
-        <div
-          ref={popoverRef}
-          style={{
-            position: "fixed",
-            bottom: `${popoverPos.bottom}px`,
-            left: `${popoverPos.left}px`,
-            width: `${popoverPos.width}px`,
-            zIndex: 9999,
-          }}
-          className="bg-white border border-[#DCE1E8] rounded-[10px] shadow-[0_12px_36px_rgba(21,32,44,0.18),0_2px_8px_rgba(21,32,44,0.08)] p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 text-[#15202C]"
-        >
+  const popoverNode =
+    isOpen &&
+    createPortal(
+      <div
+        ref={popoverRef}
+        style={{
+          position: "fixed",
+          bottom: `${popoverPos.bottom}px`,
+          left: `${popoverPos.left}px`,
+          width: `${popoverPos.width}px`,
+          zIndex: 9999,
+        }}
+        className="bg-white border border-[#DCE1E8] rounded-[10px] shadow-[0_12px_36px_rgba(21,32,44,0.18),0_2px_8px_rgba(21,32,44,0.08)] p-3 flex flex-col gap-2.5 text-[#15202C] select-none"
+      >
           {/* Popover Header: Avatar + User Info */}
           <div className="flex items-center gap-2.5 pb-2.5 border-b border-[#E8ECF2]">
             <div className="w-[38px] h-[38px] rounded-full bg-gradient-to-tr from-[#9C6B12] to-[#E0A838] text-white flex items-center justify-center font-bold text-[0.95rem] shadow-xs shrink-0">
@@ -390,16 +413,16 @@ function SidebarFooter({
           {/* Tab 1: Account & Email Details */}
           {activeTab === "profile" && (
             <div className="flex flex-col gap-1.5 text-[0.73rem] py-0.5">
-              <div className="flex items-center justify-between text-[#5A6777]">
-                <span>Email:</span>
+              <div className="flex items-center justify-between gap-2 text-[#5A6777]">
+                <span className="shrink-0">Email:</span>
                 <button
                   type="button"
                   onClick={handleCopyEmail}
                   title="Click to copy"
-                  className="text-[#15202C] font-mono text-[0.7rem] bg-[#F6F7F9] hover:bg-[#EEF1F6] px-1.5 py-0.5 rounded border border-[#DCE1E8] cursor-pointer transition-colors flex items-center gap-1.5 font-medium"
+                  className="text-[#15202C] font-mono text-[0.7rem] bg-[#F6F7F9] hover:bg-[#EEF1F6] px-1.5 py-0.5 rounded border border-[#DCE1E8] cursor-pointer transition-colors flex items-center gap-1.5 font-medium min-w-0 max-w-[180px]"
                 >
-                  <span>{currentEmail}</span>
-                  <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#5A6777]" fill="none" stroke="currentColor" strokeWidth="2">
+                  <span className="truncate">{currentEmail}</span>
+                  <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#5A6777] shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" />
                     <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
                   </svg>
@@ -530,8 +553,14 @@ function SidebarFooter({
               <span>Sign out</span>
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+      document.body
+    );
+
+  return (
+    <div className="mt-auto shrink-0 select-none">
+      {/* 1. Global Portal Popover Menu */}
+      {popoverNode}
 
       {/* 2. Trigger UI: Bottom Profile Row or Collapsed Avatar Button */}
       {isCollapsed ? (
@@ -617,6 +646,8 @@ export default function Sidebar({
   onToggleCollapse = () => {},
   isDark = false,
   onToggleTheme = () => {},
+  mobileOpen = false,
+  onCloseMobile = () => {},
 }) {
   const stats = useSelector((state) => state.dashboard?.stats);
   const reviewItems = useSelector((state) => state.jobs?.reviewItems);
@@ -750,7 +781,11 @@ export default function Sidebar({
         isCollapsed
           ? "p-[6px_8px] gap-1 overflow-y-auto"
           : "p-[14px_12px] gap-2.5 overflow-y-auto"
-      } flex flex-col sticky top-0 h-screen no-scrollbar select-none transition-all duration-300 ease-in-out max-[900px]:h-auto max-[900px]:flex-row max-[900px]:items-center max-[900px]:gap-3 max-[900px]:overflow-x-auto max-[900px]:z-20 max-[900px]:py-2.5 max-[900px]:px-4`}
+      } flex flex-col h-screen no-scrollbar select-none transition-all duration-300 ease-in-out fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] shadow-[4px_0_24px_rgba(0,0,0,0.45)] min-[901px]:sticky min-[901px]:top-0 min-[901px]:inset-auto min-[901px]:z-auto min-[901px]:w-auto min-[901px]:max-w-none min-[901px]:shadow-none min-[901px]:translate-x-0 min-[901px]:pointer-events-auto ${
+        mobileOpen
+          ? "translate-x-0"
+          : "-translate-x-full pointer-events-none"
+      }`}
       aria-label="Application Sidebar"
     >
       <SidebarBrand
@@ -758,6 +793,7 @@ export default function Sidebar({
         onToggleCollapse={onToggleCollapse}
         isDark={isDark}
         onToggleTheme={onToggleTheme}
+        onCloseMobile={onCloseMobile}
       />
 
       <SidebarNavGroup label="Workspace" isCollapsed={isCollapsed}>
@@ -771,6 +807,7 @@ export default function Sidebar({
             badgeCount={item.badgeCount}
             badgeVariant={item.badgeVariant}
             isCollapsed={isCollapsed}
+            onNavigate={onCloseMobile}
           />
         ))}
       </SidebarNavGroup>
@@ -785,6 +822,7 @@ export default function Sidebar({
             badgeCount={item.badgeCount}
             badgeVariant={item.badgeVariant}
             isCollapsed={isCollapsed}
+            onNavigate={onCloseMobile}
           />
         ))}
       </SidebarNavGroup>
