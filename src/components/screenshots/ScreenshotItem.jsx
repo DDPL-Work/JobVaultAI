@@ -1,5 +1,6 @@
 import { STAGES, STAGE_LABEL } from "./screenshotData";
 import SafeImage from "../common/SafeImage";
+import TruncatedText from "../common/TruncatedText";
 
 export default function ScreenshotItem({
   item,
@@ -69,11 +70,12 @@ export default function ScreenshotItem({
 
       {/* 2. File details */}
       <div className="min-w-0 flex flex-col justify-center">
-        <div
-          className="font-['IBM_Plex_Mono',monospace] text-[0.76rem] font-medium text-[#15202C] truncate flex items-center gap-1.5"
-          title={item.originalName || item.filename}
-        >
-          <span className="truncate">{item.originalName || item.filename}</span>
+        <div className="font-['IBM_Plex_Mono',monospace] text-[0.76rem] font-medium text-[#15202C] truncate flex items-center gap-1.5">
+          <TruncatedText
+            as="span"
+            text={item.originalName || item.filename}
+            className="truncate"
+          />
           {item.isCombined && (
             <span className="text-[0.62rem] font-bold bg-[#FAF4E8] text-[#9C6B12] border border-[#E5D2A8] rounded-[3px] px-1.5 py-0.2 shrink-0">
               {item.partsCount || "Multi"}-Part Combined
@@ -86,12 +88,15 @@ export default function ScreenshotItem({
             </span>
           )}
         </div>
-        <div className="text-[0.75rem] text-[#5A6777] mt-0.5 truncate">
-          {item.dateFormatted} · {item.origin || "Uploaded"}
-          {item.sourceApp ? ` · ${item.sourceApp}` : ""}
-          {item.isCombined ? ` · ${item.partsCount} parts merged` : ""}
-          {item.isPdf ? ` · Rendered via pypdfium2 (~144 DPI)` : ""}
-        </div>
+        <TruncatedText
+          as="div"
+          text={`${item.dateFormatted} · ${item.origin || "Uploaded"}${
+            item.sourceApp ? ` · ${item.sourceApp}` : ""
+          }${item.isCombined ? ` · ${item.partsCount} parts merged` : ""}${
+            item.isPdf ? " · Rendered via pypdfium2 (~144 DPI)" : ""
+          }`}
+          className="text-[0.75rem] text-[#5A6777] mt-0.5 truncate"
+        />
       </div>
 
       {/* 3. Pipeline Progress Segments */}
