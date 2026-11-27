@@ -22,6 +22,10 @@ function SidebarNavItem({
   isCollapsed = false,
   onNavigate,
 }) {
+  const showBadge =
+    badgeCount !== undefined &&
+    badgeCount !== null &&
+    Number(badgeCount) > 0;
   const badgeClasses =
     badgeVariant === "info"
       ? "bg-[#235F8C] text-white"
@@ -61,7 +65,7 @@ function SidebarNavItem({
         </svg>
 
         {/* Collapsed Badge Pill overlaid on icon */}
-        {isCollapsed && badgeCount !== undefined && badgeCount !== null && badgeCount > 0 && (
+        {isCollapsed && showBadge && (
           <span
             className={`hidden min-[901px]:flex absolute -top-1 -right-2 font-['IBM_Plex_Mono',monospace] text-[0.6rem] min-w-[14px] h-[14px] items-center justify-center rounded-full px-0.5 font-bold leading-none shadow-sm ${badgeClasses}`}
           >
@@ -74,9 +78,9 @@ function SidebarNavItem({
       {!isCollapsed && (
         <>
           <span className="truncate">{label}</span>
-          {badgeCount !== undefined && badgeCount !== null && badgeCount > 0 && (
+          {showBadge && (
             <span
-              className={`ml-auto font-['IBM_Plex_Mono',monospace] text-[0.7rem] rounded-[10px] px-1.5 py-0.5 leading-none shrink-0 ${badgeClasses}`}
+              className={`ml-auto font-['IBM_Plex_Mono',monospace] text-[0.7rem] min-w-[20px] h-[18px] inline-flex items-center justify-center rounded-full px-1.5 font-bold leading-none shrink-0 ${badgeClasses}`}
             >
               {badgeCount}
             </span>
@@ -651,10 +655,17 @@ export default function Sidebar({
 }) {
   const stats = useSelector((state) => state.dashboard?.stats);
   const reviewItems = useSelector((state) => state.jobs?.reviewItems);
+  const reviewLoaded = useSelector((state) => state.jobs?.reviewLoaded);
+  const allJobs = useSelector((state) => state.jobs?.items);
+  const jobsLoaded = useSelector((state) => state.jobs?.loaded);
   const reviewCount =
     reviewCountProp !== undefined
       ? reviewCountProp
-      : Number(stats?.review ?? reviewItems?.length ?? 0);
+      : jobsLoaded && Array.isArray(allJobs)
+      ? allJobs.filter((j) => j.status === "review").length
+      : reviewLoaded && Array.isArray(reviewItems)
+      ? reviewItems.length
+      : Number(stats?.review ?? 0);
   const processingCount =
     processingCountProp !== undefined
       ? processingCountProp

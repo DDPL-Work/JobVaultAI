@@ -2,6 +2,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  FiImage,
+  FiFileText,
+  FiAlertTriangle,
+  FiCopy,
+  FiAlertCircle,
+} from "react-icons/fi";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import ErrorFallback from "../components/common/ErrorFallback";
@@ -43,12 +50,31 @@ const SOURCE_COLORS = {
 /**
  * Reusable KPI Card Component
  */
-function KpiCard({ to, label, value, description, isAttn = false, isBad = false }) {
+function KpiCard({
+  to,
+  label,
+  value,
+  description,
+  icon: Icon,
+  iconClassName = "bg-[#F6F7F9] border-[#DCE1E8] text-[#5A6777]",
+  isAttn = false,
+  isBad = false,
+}) {
   const cardContent = (
     <>
-      <span className="text-[0.7rem] uppercase tracking-[0.08em] font-semibold text-[#5A6777]">
-        {label}
-      </span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[0.7rem] uppercase tracking-[0.08em] font-semibold text-[#5A6777] leading-snug pt-0.5">
+          {label}
+        </span>
+        {Icon && (
+          <span
+            className={`w-7 h-7 rounded-[6px] border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${iconClassName}`}
+            aria-hidden="true"
+          >
+            <Icon className="w-3.5 h-3.5" />
+          </span>
+        )}
+      </div>
       <span
         className={`font-['Bricolage_Grotesque',sans-serif] text-[1.8rem] font-bold tabular-nums leading-[1.1] ${
           isAttn ? "text-[#9A5B00]" : isBad ? "text-[#A8281F]" : "text-[#15202C]"
@@ -60,7 +86,7 @@ function KpiCard({ to, label, value, description, isAttn = false, isBad = false 
     </>
   );
 
-  const baseClasses = `p-[14px_16px] rounded-[8px] flex flex-col gap-1 transition-all duration-300 ease-out ${
+  const baseClasses = `group p-[14px_16px] rounded-[8px] flex flex-col gap-1 transition-all duration-300 ease-out ${
     isAttn
       ? "bg-[#FBEBCF] border border-transparent"
       : "bg-white border border-[#DCE1E8] hover:border-[#5A6777]"
@@ -402,12 +428,16 @@ export default function Dashboard() {
             label="Screenshots this week"
             value={STATS.screenshotsWeek}
             description={`${STATS.screenshots} in total`}
+            icon={FiImage}
+            iconClassName="bg-[#FAF4E8] border-[#F0DFB8] text-[#9C6B12]"
           />
           <KpiCard
             to="/jobs"
             label="Jobs in sheet"
             value={STATS.inSheet}
             description={`${STATS.addedToday} added today`}
+            icon={FiFileText}
+            iconClassName="bg-[#DCF0E3]/70 border-[#BCE2CA] text-[#24734A]"
           />
           <KpiCard
             to="/review"
@@ -415,11 +445,19 @@ export default function Dashboard() {
             value={STATS.review}
             description={`Unclear or below ${STATS.threshold}% confidence`}
             isAttn={STATS.review > 0}
+            icon={FiAlertTriangle}
+            iconClassName={
+              STATS.review > 0
+                ? "bg-white/80 border-[#E8C078] text-[#9A5B00]"
+                : "bg-[#FAF4E8] border-[#EFE2C6] text-[#9A5B00]"
+            }
           />
           <KpiCard
             label="Duplicates skipped"
             value={STATS.duplicates}
             description="Same job shared again"
+            icon={FiCopy}
+            iconClassName="bg-[#EDF3FA] border-[#D0E0F2] text-[#235F8C]"
           />
           <KpiCard
             to="/inbox"
@@ -427,6 +465,8 @@ export default function Dashboard() {
             value={STATS.failed}
             description={STATS.failed ? "Open to retry" : "Nothing failed"}
             isBad={STATS.failed > 0}
+            icon={FiAlertCircle}
+            iconClassName="bg-[#FDF2F2] border-[#F5C2C0] text-[#A8281F]"
           />
         </div>
       )}

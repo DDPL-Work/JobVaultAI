@@ -14,7 +14,10 @@ export default function ScreenshotList({
   onOpenJob,
 }) {
   return (
-    <div className="w-full min-w-0 bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]">
+    <div
+      id="recent-screenshots-list"
+      className="w-full min-w-0 bg-white border border-[#DCE1E8] rounded-[8px] overflow-hidden shadow-[0_1px_2px_rgba(21,32,44,0.06)]"
+    >
       {/* Panel Header */}
       <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 border-b border-[#DCE1E8] flex-wrap">
         <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[1.08rem] font-bold text-[#15202C] m-0">

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import ScreenshotUploadZone from "../components/screenshots/ScreenshotUploadZone";
 import ScreenshotList from "../components/screenshots/ScreenshotList";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
+import UploadProgressPopup from "../components/screenshots/UploadProgressPopup";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ErrorFallback from "../components/common/ErrorFallback";
 import {
@@ -36,7 +37,19 @@ export default function Screenshots() {
 
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadState, setUploadState] = useState(null);
+  const [completionState, setCompletionState] = useState(null);
+  const progressTimerRef = useRef(null);
+  const dismissTimerRef = useRef(null);
+  const completionTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+    };
+  }, []);
 
   // Load live screenshots and jobs on mount
   useEffect(() => {
@@ -63,6 +76,8 @@ export default function Screenshots() {
     if (runningCount === 0) return;
     const timer = setInterval(() => {
       dispatch(fetchScreenshots());
+      dispatch(fetchDashboardStats());
+      dispatch(fetchJobs());
     }, 3000);
     return () => clearInterval(timer);
   }, [runningCount, dispatch]);
@@ -84,41 +99,74 @@ export default function Screenshots() {
         (f) =>
           f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
       );
+      const firstName = uploadFiles[0]?.name || "";
+      const fileLabel =
+        uploadFiles.length > 1
+          ? `${firstName} +${uploadFiles.length - 1} more`
+          : firstName;
 
-      if (isCombine && uploadFiles.length > 1) {
-        toast.info(
-          `Combining ${uploadFiles.length} parts into 1 single job · reading queued`
-        );
-      } else if (hasPdf) {
-        toast.info(
-          `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} uploading · PDF auto page-splitting active`
-        );
-      } else {
-        toast.info(
-          `${uploadFiles.length} screenshot${uploadFiles.length > 1 ? "s" : ""} uploading · reading queued`
-        );
-      }
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+      setCompletionState(null);
 
-      setUploadProgress(25);
+      setUploadState({
+        visible: true,
+        closing: false,
+        progress: 6,
+        fileCount: uploadFiles.length,
+        fileName: fileLabel,
+        isCombine: isCombine && uploadFiles.length > 1,
+        hasPdf,
+        status: "uploading",
+      });
+
+      progressTimerRef.current = setInterval(() => {
+        setUploadState((prev) => {
+          if (!prev || prev.status !== "uploading") return prev;
+          const remaining = 94 - prev.progress;
+          if (remaining <= 0.5) return prev;
+          const step = Math.max(0.8, remaining * 0.14);
+          return {
+            ...prev,
+            progress: Math.min(94, prev.progress + step),
+          };
+        });
+      }, 95);
 
       try {
-        setUploadProgress(65);
         await dispatch(
           uploadScreenshots({ files: uploadFiles, combine: isCombine })
         ).unwrap();
-        setUploadProgress(100);
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+        setUploadState((prev) =>
+          prev ? { ...prev, progress: 100, status: "done" } : null
+        );
         await dispatch(fetchScreenshots());
         dispatch(fetchJobs());
-        toast.success(
-          `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} uploaded to queue`
-        );
+        dispatch(fetchDashboardStats());
+
+        dismissTimerRef.current = setTimeout(() => {
+          setUploadState((prev) => (prev ? { ...prev, closing: true } : null));
+          setTimeout(() => setUploadState(null), 280);
+        }, 650);
+
+        setCompletionState({
+          visible: true,
+          closing: false,
+          fileCount: uploadFiles.length,
+        });
+        completionTimerRef.current = setTimeout(() => {
+          setCompletionState((prev) => (prev ? { ...prev, closing: true } : null));
+          setTimeout(() => setCompletionState(null), 280);
+        }, 5500);
       } catch (err) {
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+        setUploadState(null);
         const msg =
           (typeof err === "string" ? err : err?.message) ||
           "Failed to upload screenshots";
         toast.error(msg);
-      } finally {
-        setTimeout(() => setUploadProgress(null), 400);
       }
     },
     [dispatch]
@@ -241,11 +289,22 @@ export default function Screenshots() {
         </p>
       </div>
 
-      {/* Upload Dropzone */}
-      <ScreenshotUploadZone
-        onFilesSelected={handleFilesSelected}
-        uploadingProgress={uploadProgress}
+      {/* Top-Right Upload Progress Popup + Bottom-Right Completion Popup */}
+      <UploadProgressPopup
+        uploadState={uploadState}
+        completionState={completionState}
+        onDismissUpload={() => setUploadState(null)}
+        onDismissCompletion={() => setCompletionState(null)}
+        onViewUploaded={() => {
+          setCompletionState(null);
+          document
+            .getElementById("recent-screenshots-list")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
       />
+
+      {/* Upload Dropzone */}
+      <ScreenshotUploadZone onFilesSelected={handleFilesSelected} />
 
       {/* Graceful Error Banner if background refresh fails while cached items exist */}
       {error && screenshots.length > 0 && (

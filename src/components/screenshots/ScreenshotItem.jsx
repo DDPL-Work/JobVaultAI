@@ -53,7 +53,7 @@ export default function ScreenshotItem({
   };
 
   return (
-    <div className="grid grid-cols-[52px_minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] max-[900px]:grid-cols-[52px_minmax(0,1fr)_auto] gap-3 sm:gap-3.5 items-center max-[900px]:items-start px-3 sm:px-4 py-3 sm:py-2.5 border-b border-[#DCE1E8] last:border-b-0 hover:bg-[#F9FAFC]/80 transition-colors">
+    <div className="grid grid-cols-[52px_minmax(0,1.35fr)_minmax(150px,0.9fr)_minmax(230px,0.95fr)_auto] max-[900px]:grid-cols-[52px_minmax(0,1fr)_auto] gap-3 sm:gap-3.5 items-center max-[900px]:items-start px-3 sm:px-4 py-3 sm:py-2.5 border-b border-[#DCE1E8] last:border-b-0 hover:bg-[#F9FAFC]/80 transition-colors">
       {/* 1. Thumbnail */}
       <div
         className="w-[52px] h-[68px] rounded-[4px] border border-[#DCE1E8] bg-[#F6F7F9] overflow-hidden cursor-zoom-in shrink-0 flex items-center justify-center"
@@ -101,7 +101,7 @@ export default function ScreenshotItem({
 
       {/* 3. Pipeline Progress Segments */}
       <div className="max-[900px]:col-span-full max-[640px]:pl-0 min-[641px]:max-[900px]:pl-[66px] flex flex-col justify-center">
-        <div className="grid grid-cols-5 gap-1 w-full max-w-[220px] max-[640px]:max-w-none">
+        <div className="grid grid-cols-5 gap-1 w-full max-w-[190px] max-[640px]:max-w-none">
           {STAGES.map((stageKey, i) => {
             let stateClass = "bg-[#F6F7F9] border-[#DCE1E8]";
 
@@ -141,10 +141,10 @@ export default function ScreenshotItem({
                 key={job.id}
                 type="button"
                 onClick={() => onOpenJob?.(job.id)}
-                className="inline-flex items-center gap-2 px-2 py-1 bg-white border border-[#DCE1E8] rounded-[6px] hover:border-[#5A6777] transition-colors cursor-pointer select-none text-left"
+                className="inline-flex items-center gap-2 px-2.5 py-1 bg-white border border-[#DCE1E8] rounded-[6px] hover:border-[#5A6777] transition-colors cursor-pointer select-none text-left whitespace-nowrap shrink-0"
                 title={`Open ${job.code}`}
               >
-                <span className="font-['IBM_Plex_Mono',monospace] text-[0.78rem] font-bold text-[#15202C]">
+                <span className="font-['IBM_Plex_Mono',monospace] text-[0.78rem] font-bold text-[#15202C] whitespace-nowrap shrink-0">
                   {job.code}
                 </span>
                 <span

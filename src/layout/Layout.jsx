@@ -8,6 +8,7 @@ import {
   fetchDashboardStats,
   fetchHealthStatus,
 } from "../apis/thunks/dashboardThunks";
+import { fetchReviewJobs } from "../apis/thunks/jobsThunks";
 
 /**
  * Main application Layout wrapping the Sidebar and page outlet
@@ -23,6 +24,7 @@ export default function Layout() {
   useEffect(() => {
     dispatch(fetchDashboardStats());
     dispatch(fetchHealthStatus());
+    dispatch(fetchReviewJobs());
   }, [dispatch]);
 
   useEffect(() => {
