@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function ScreenshotUploadZone({ onFilesSelected, uploadingProgress }) {
+export default function ScreenshotUploadZone({ onFilesSelected }) {
   const [isDragging, setIsDragging] = useState(false);
   const [combineMode, setCombineMode] = useState(false);
   const fileInputRef = useRef(null);
@@ -165,20 +165,6 @@ export default function ScreenshotUploadZone({ onFilesSelected, uploadingProgres
           <span>{combineMode ? "combine=true" : "combine=false"}</span>
         </div> */}
       </div>
-
-      {uploadingProgress !== null && uploadingProgress !== undefined && (
-        <div className="flex items-center gap-3 mt-3">
-          <span className="text-[0.78rem] text-[#5A6777]">
-            Processing files ({uploadingProgress}%)...
-          </span>
-          <div className="flex-1 max-w-[320px] h-[6px] rounded-[3px] bg-[#F6F7F9] border border-[#DCE1E8] overflow-hidden">
-            <div
-              className="h-full bg-[#9C6B12] transition-all duration-200"
-              style={{ width: `${uploadingProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

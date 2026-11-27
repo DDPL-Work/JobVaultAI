@@ -511,3 +511,38 @@ html.dark .jv-range-input::-moz-range-thumb {
   will-change: transform, opacity;
 }
 
+/* Top Upload Progress Popup & Shimmer Bar */
+@keyframes jvUploadPopupIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.jv-upload-popup-in {
+  animation: jvUploadPopupIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes jvUploadShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.jv-upload-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
+  animation: jvUploadShimmer 1.2s ease-in-out infinite;
+}
+
