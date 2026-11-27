@@ -248,12 +248,12 @@ export default function PasswordResetFlow({
   };
 
   return (
-    <div className="w-full flex flex-col items-start animate-in fade-in slide-in-from-right-3 duration-200">
+    <div className="w-full flex flex-col items-start">
       {/* ------------------------------------------------------------- */}
       {/* VIEW 1: Email Input (/api/auth/forgot-password) */}
       {/* ------------------------------------------------------------- */}
       {step === "forgot" && (
-        <div className="w-full flex flex-col">
+        <div key="step-forgot" className="w-full flex flex-col jv-slide-from-right">
           {/* Header & Badging matching Login */}
           <div className="flex items-center gap-2.5 mt-2.5 w-full">
             <div className="h-[1px] bg-[#E2E8F0] w-12 sm:w-16" />
@@ -363,7 +363,7 @@ export default function PasswordResetFlow({
       {/* VIEW 2: 6-Digit OTP Verification (/api/auth/verify-reset-token) */}
       {/* ------------------------------------------------------------- */}
       {step === "otp" && (
-        <div className="w-full flex flex-col">
+        <div key="step-otp" className="w-full flex flex-col jv-slide-from-right">
           {/* Header & Badging */}
           <div className="flex items-center gap-2.5 mt-2.5 w-full">
             <div className="h-[1px] bg-[#E2E8F0] w-12 sm:w-16" />
@@ -479,7 +479,7 @@ export default function PasswordResetFlow({
       {/* VIEW 3: Password Reset Form (/api/auth/reset-password) */}
       {/* ------------------------------------------------------------- */}
       {step === "reset" && (
-        <div className="w-full flex flex-col">
+        <div key="step-reset" className="w-full flex flex-col jv-slide-from-right">
           {/* Header & Badging */}
           <div className="flex items-center gap-2.5 mt-2.5 w-full">
             <div className="h-[1px] bg-[#E2E8F0] w-12 sm:w-16" />

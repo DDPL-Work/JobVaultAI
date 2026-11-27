@@ -28,6 +28,7 @@ export default function Login({ initialMode = "login" }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successNotice, setSuccessNotice] = useState("");
+  const [animateLoginReturn, setAnimateLoginReturn] = useState(false);
 
   // Sync mode if initialMode prop or pathname changes
   useEffect(() => {
@@ -137,7 +138,7 @@ export default function Login({ initialMode = "login" }) {
 
           {/* Middle Blending Effect – Smooth Soft White Fog Gradient on the right edge */}
           <div
-            className="absolute inset-y-0 right-0 w-24 sm:w-32 md:w-40 lg:w-25 pointer-events-none z-10"
+            className="absolute inset-y-0 right-0 w-24 sm:w-32 md:w-40 lg:w-21 pointer-events-none z-10"
             style={{
               background:
                 "linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.68) 75%, rgba(255,255,255,0.92) 90%, #FFFFFF 100%)",
@@ -146,7 +147,7 @@ export default function Login({ initialMode = "login" }) {
         </div>
 
         {/* Right Column: Seamless continuous white background for the login form */}
-        <div className="relative z-10 ml-auto w-full lg:w-[470px] xl:w-[510px] 2xl:w-[540px] shrink-0 h-full flex flex-col justify-center items-center px-8 sm:px-10 lg:px-5 py-3 overflow-hidden bg-white">
+        <div className="relative z-10 ml-auto w-full lg:w-[470px] xl:w-[510px] 2xl:w-[540px] shrink-0 h-full flex flex-col justify-center items-center px-8 sm:px-10 lg:px-3 py-3 overflow-y-auto overflow-x-hidden bg-white">
           {/* Top-Right Soft Champagne Ribbon Wave (Matching reference design) */}
           <div className="absolute top-0 right-0 w-72 sm:w-96 h-40 sm:h-52 pointer-events-none select-none z-0 overflow-hidden">
             <svg
@@ -217,9 +218,16 @@ export default function Login({ initialMode = "login" }) {
                 JobVault AI
               </span>
             </div>
+          </div>
 
-            {/* ADMIN PORTAL Badge (shown on login mode) */}
-            {authMode === "login" && (
+          {/* MAIN FORM AREA: Smooth slide transitions between Sign-in and Password Reset Flow */}
+          <div className="w-[calc(100%+8px)] -mx-1 px-1 pb-1 overflow-hidden">
+          {authMode === "login" ? (
+            <div
+              key="login-panel"
+              className={`w-full flex flex-col ${animateLoginReturn ? "jv-slide-from-left" : ""}`}
+            >
+              {/* ADMIN PORTAL Badge */}
               <div className="flex items-center gap-2.5 mt-2.5 w-full">
                 <div className="h-[1px] bg-[#E2E8F0] w-12 sm:w-16" />
                 <span className="bg-[#FDF4E2] text-[#8A5C14] text-[0.66rem] font-bold tracking-[0.08em] px-2.5 py-0.5 rounded-[5px] uppercase border border-[#F5EAD3] inline-block shrink-0 shadow-2xs">
@@ -227,15 +235,10 @@ export default function Login({ initialMode = "login" }) {
                 </span>
                 <div className="h-[1px] bg-[#E2E8F0] flex-1" />
               </div>
-            )}
-          </div>
 
-          {/* MAIN FORM AREA: Switch between Sign-in and Password Reset Flow */}
-          {authMode === "login" ? (
-            <>
               {/* Optional Success Notice when returning from Password Reset */}
               {successNotice && (
-                <div className="mt-4 px-3 py-2 bg-[#EBF7EE] border border-[#D4EDDA] rounded-[8px] text-[0.8rem] text-[#1E7E34] flex items-center gap-2 w-full animate-in fade-in duration-200">
+                <div className="mt-4 px-3 py-2 bg-[#EBF7EE] border border-[#D4EDDA] rounded-[8px] text-[0.8rem] text-[#1E7E34] flex items-center gap-2 w-full">
                   <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
@@ -369,6 +372,7 @@ export default function Login({ initialMode = "login" }) {
                     type="button"
                     onClick={() => {
                       setSuccessNotice("");
+                      setAnimateLoginReturn(true);
                       setAuthMode("forgot");
                     }}
                     className="font-medium text-[#C68A1E] hover:text-[#9C6B12] transition-colors cursor-pointer"
@@ -402,21 +406,27 @@ export default function Login({ initialMode = "login" }) {
                   )}
                 </button>
               </form>
-            </>
+            </div>
           ) : (
-            /* 3-Step Password Reset Flow: Email -> 6-Digit OTP -> New Password Form */
+            /* 3-Step Password Reset Flow: Slides smoothly from right */
             <PasswordResetFlow
+              key="reset-flow-panel"
               initialStep={authMode}
               initialEmail={email.includes("@") ? email : ""}
-              onBackToLogin={() => setAuthMode("login")}
+              onBackToLogin={() => {
+                setAnimateLoginReturn(true);
+                setAuthMode("login");
+              }}
               onResetComplete={(newEmail) => {
                 if (newEmail) setEmail(newEmail);
                 setPassword("");
                 setSuccessNotice("Password updated successfully! Sign in with your new credentials.");
+                setAnimateLoginReturn(true);
                 setAuthMode("login");
               }}
             />
           )}
+          </div>
 
           {/* Secure Access Footer with left & right divider lines matching reference */}
           <div className="mt-7 flex items-center justify-center gap-3 text-[0.78rem] text-[#5A6777] w-full">

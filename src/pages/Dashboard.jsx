@@ -27,6 +27,7 @@ import {
   updateRecentJobStatus,
   updateRecentJob,
 } from "../apis/slices/dashboardSlice";
+import { getUser } from "../apis/apiClient";
 
 // Platform brand colors matching the HTML design
 const SOURCE_COLORS = {
@@ -143,10 +144,22 @@ export default function Dashboard() {
     statsLoaded,
     error,
   } = useSelector((state) => state.dashboard);
+  const reduxUser = useSelector((state) => state.auth?.user);
+  const storedUser = getUser();
+  const hasIdentity = (u) => Boolean(u && (u.username || u.name || u.email));
+  const currentUser =
+    (hasIdentity(reduxUser) ? reduxUser : null) ||
+    (hasIdentity(storedUser) ? storedUser : null) ||
+    {};
+  const displayName =
+    currentUser.username ||
+    currentUser.name ||
+    (currentUser.email ? currentUser.email.split("@")[0] : "");
 
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
   const [barsReady, setBarsReady] = useState(false);
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [recentScrollState, setRecentScrollState] = useState({
     canScrollLeft: false,
     canScrollRight: false,
@@ -229,13 +242,22 @@ export default function Dashboard() {
     };
   }, [hasStatsData, barsReady]);
 
-  const currentHour = new Date().getHours();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const greeting =
-    currentHour < 12
+    currentHour >= 5 && currentHour < 12
       ? "Good morning"
-      : currentHour < 17
+      : currentHour >= 12 && currentHour < 16
       ? "Good afternoon"
-      : "Good evening";
+      : currentHour >= 16 && currentHour < 20
+      ? "Good evening"
+      : "Good night";
+  const greetingText = displayName ? `${greeting}, ${displayName}` : greeting;
 
   const handleJobStatusChange = async (jobId, newStatus) => {
     dispatch(updateRecentJobStatus({ jobId, newStatus }));
@@ -314,7 +336,7 @@ export default function Dashboard() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-[260px]">
           <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[1.65rem] font-bold text-[#15202C] tracking-[-0.01em] leading-tight m-0">
-            {greeting}
+            {greetingText}
           </h1>
           <p className="mt-1 text-[#5A6777] max-w-[65ch] text-[0.875rem] leading-normal m-0">
             Job screenshots are read by AI, checked against the text in the image, sorted into

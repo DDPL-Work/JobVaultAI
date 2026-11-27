@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { FiRefreshCw } from "react-icons/fi";
 import { SOURCE_COLORS, getJobVaults } from "./jobsData";
 import { JobSheetTableSkeleton } from "../common/LoadingSkeletons";
 import ConfidenceMeter from "../common/ConfidenceMeter";
@@ -6,7 +7,9 @@ import ConfidenceMeter from "../common/ConfidenceMeter";
 export default function JobSheetTable({
   jobs = [],
   loading = false,
+  refreshing = false,
   onRowClick,
+  onRefresh,
   scrollContainerRef,
   onScrollStateChange,
 }) {
@@ -95,11 +98,146 @@ export default function JobSheetTable({
 
   if (!jobs || jobs.length === 0) {
     return (
-      <div className="text-center py-12 px-4 flex flex-col items-center justify-center gap-1.5 text-[#5A6777]">
-        <b className="text-[#15202C] text-[0.95rem]">No jobs match</b>
-        <span className="text-[0.82rem]">
-          Try another vault or status, or clear the search.
-        </span>
+      <div className="text-center py-8 px-4 flex flex-col items-center justify-center gap-2 text-[#5A6777]">
+        <svg
+          viewBox="0 0 190 120"
+          className="w-[170px] sm:w-[190px] h-auto mx-auto select-none pointer-events-none"
+          aria-hidden="true"
+        >
+          {/* Spreadsheet / Job Sheet Card */}
+          <rect
+            x="24"
+            y="10"
+            width="142"
+            height="92"
+            rx="7"
+            fill="#FFFFFF"
+            stroke="#CBD5E1"
+            strokeWidth="2.2"
+          />
+          {/* Window Top Header */}
+          <line
+            x1="24"
+            y1="26"
+            x2="166"
+            y2="26"
+            stroke="#CBD5E1"
+            strokeWidth="1.8"
+          />
+          <circle cx="34" cy="18" r="2.2" fill="#15202C" />
+          <circle cx="42" cy="18" r="2.2" fill="#94A3B8" />
+          <circle cx="50" cy="18" r="2.2" fill="#15202C" />
+
+          {/* Placeholder Rows */}
+          <rect x="34" y="35" width="122" height="10" rx="2.5" fill="#F1F5F9" />
+          <line x1="39" y1="40" x2="105" y2="40" stroke="#64748B" strokeWidth="2.4" strokeLinecap="round" />
+          <line x1="112" y1="40" x2="132" y2="40" stroke="#94A3B8" strokeWidth="2.4" strokeLinecap="round" />
+          <line x1="138" y1="40" x2="149" y2="40" stroke="#94A3B8" strokeWidth="2.4" strokeLinecap="round" />
+
+          <line x1="38" y1="53" x2="88" y2="53" stroke="#CBD5E1" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="6 4" />
+          <line x1="95" y1="53" x2="142" y2="53" stroke="#94A3B8" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="8 5" />
+
+          <rect x="34" y="62" width="122" height="11" rx="2.5" fill="#F1F5F9" />
+          <line x1="39" y1="67.5" x2="72" y2="67.5" stroke="#64748B" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="5 4" />
+          <line x1="79" y1="67.5" x2="128" y2="67.5" stroke="#94A3B8" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="7 5" />
+
+          <line x1="38" y1="82" x2="100" y2="82" stroke="#CBD5E1" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="5 5" />
+          <line x1="108" y1="82" x2="146" y2="82" stroke="#CBD5E1" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="6 4" />
+
+          {/* Moving Magnifying Glass Lens */}
+          <g className="jv-lens-scan">
+            {/* Subtle Lens Shadow */}
+            <circle cx="97" cy="69" r="22" fill="#0F172A" opacity="0.06" />
+            {/* Handle */}
+            <line
+              x1="111"
+              y1="82"
+              x2="126"
+              y2="97"
+              stroke="#15202C"
+              strokeWidth="6.5"
+              strokeLinecap="round"
+            />
+            <line
+              x1="111"
+              y1="82"
+              x2="126"
+              y2="97"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            {/* Glass Fill & Rim */}
+            <circle
+              cx="95"
+              cy="66"
+              r="20.5"
+              fill="#E2E8F0"
+              fillOpacity="0.55"
+              stroke="#FFFFFF"
+              strokeWidth="5"
+            />
+            <circle
+              cx="95"
+              cy="66"
+              r="19.5"
+              fill="#94A3B8"
+              fillOpacity="0.22"
+              stroke="#15202C"
+              strokeWidth="3.2"
+            />
+            {/* Inner Lens Rim & Reflection */}
+            <circle
+              cx="95"
+              cy="66"
+              r="14.5"
+              fill="none"
+              stroke="#475569"
+              strokeWidth="1.4"
+              opacity="0.5"
+            />
+            <path
+              d="M84 59 A13 13 0 0 1 97 53"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+            {/* Gold Accent Dot */}
+            <circle
+              cx="110"
+              cy="49"
+              r="7.5"
+              fill="#9C6B12"
+              stroke="#FFFFFF"
+              strokeWidth="2"
+            />
+          </g>
+        </svg>
+
+        <div className="flex flex-col items-center gap-0.5">
+          <b className="text-[#15202C] text-[0.98rem] font-semibold">
+            No jobs match
+          </b>
+          <span className="text-[0.82rem] max-w-md">
+            Try another vault, status, or refresh to clear active filters and reload the job list.
+          </span>
+        </div>
+
+        {onRefresh && (
+          <button
+            type="button"
+            disabled={refreshing}
+            onClick={onRefresh}
+            className="mt-1 inline-flex items-center gap-2 border border-[#9C6B12] bg-[#9C6B12] hover:brightness-105 text-white rounded-[6px] px-4 py-1.5 text-[0.82rem] font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-60"
+          >
+            <FiRefreshCw
+              className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`}
+            />
+            <span>{refreshing ? "Refreshing..." : "Refresh list"}</span>
+          </button>
+        )}
       </div>
     );
   }

@@ -1,10 +1,17 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { FiSliders } from "react-icons/fi";
 import JobSheetToolbar from "../components/jobs/JobSheetToolbar";
 import JobSheetTable from "../components/jobs/JobSheetTable";
 import JobSheetPagination from "../components/jobs/JobSheetPagination";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
+import JobFilterModal, {
+  DEFAULT_ADVANCED_FILTERS,
+  matchesAdvancedFilters,
+  sortFilteredJobs,
+  countActiveAdvancedFilters,
+} from "../components/jobs/JobFilterModal";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import ErrorFallback from "../components/common/ErrorFallback";
 import { getJobVaults } from "../components/jobs/jobsData";
@@ -42,6 +49,10 @@ export default function JobSheet() {
   const [pageSize, setPageSize] = useState(8);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState(
+    DEFAULT_ADVANCED_FILTERS
+  );
   const [tableScrollState, setTableScrollState] = useState({
     canScrollLeft: false,
     canScrollRight: false,
@@ -63,9 +74,20 @@ export default function JobSheet() {
     dispatch(fetchVaults());
   }, [dispatch]);
 
-  // Filter jobs based on search, vault, source, status
+  const activeAdvancedFilterCount = useMemo(
+    () => countActiveAdvancedFilters(advancedFilters),
+    [advancedFilters]
+  );
+
+  const vaultFilterOptions = useMemo(() => {
+    return Array.isArray(dynamicVaults)
+      ? dynamicVaults.filter((v) => v.is_active !== false).map((v) => v.name)
+      : [];
+  }, [dynamicVaults]);
+
+  // Filter jobs based on search, vault, source, status, and modal filters
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
+    const matched = jobs.filter((job) => {
       // 1. Search Query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -96,9 +118,58 @@ export default function JobSheet() {
         return false;
       }
 
+      // 5. Advanced Modal Filters
+      if (!matchesAdvancedFilters(job, advancedFilters)) {
+        return false;
+      }
+
       return true;
     });
-  }, [jobs, searchQuery, selectedVault, selectedSource, selectedStatus]);
+
+    return sortFilteredJobs(matched, advancedFilters.sortBy);
+  }, [
+    jobs,
+    searchQuery,
+    selectedVault,
+    selectedSource,
+    selectedStatus,
+    advancedFilters,
+  ]);
+
+  const handleApplyModalFilters = (draft) => {
+    setSearchQuery(draft.searchQuery || "");
+    setSelectedVault(draft.vault || "all");
+    setSelectedSource(draft.source || "all");
+    setSelectedStatus(draft.status || "all");
+    setAdvancedFilters({
+      salaryMode: draft.salaryMode,
+      salaryMinLpa: draft.salaryMinLpa,
+      salaryMaxLpa: draft.salaryMaxLpa,
+      expMin: draft.expMin,
+      expMax: draft.expMax,
+      workMode: draft.workMode,
+      location: draft.location,
+      country: draft.country,
+      minConfidence: draft.minConfidence,
+      sortBy: draft.sortBy,
+    });
+    setCurrentPage(1);
+    setFilterModalOpen(false);
+  };
+
+  const handleResetAllFilters = () => {
+    setSearchQuery("");
+    setSelectedVault("all");
+    setSelectedSource("all");
+    setSelectedStatus("all");
+    setAdvancedFilters(DEFAULT_ADVANCED_FILTERS);
+    setCurrentPage(1);
+  };
+
+  const handleEmptyStateRefresh = async () => {
+    handleResetAllFilters();
+    await Promise.all([dispatch(fetchJobs()), dispatch(fetchVaults())]);
+  };
 
   // Paginated slice of filtered jobs
   const paginatedJobs = useMemo(() => {
@@ -260,6 +331,25 @@ export default function JobSheet() {
 
         {/* Action Buttons */}
         <div className="w-full sm:w-auto flex items-center justify-start sm:justify-end gap-2 sm:gap-2.5 flex-wrap sm:shrink-0 sm:ml-auto">
+          {/* Filters Button */}
+          <button
+            type="button"
+            onClick={() => setFilterModalOpen(true)}
+            className={`border rounded-[6px] px-2.5 sm:px-3.5 py-1.5 text-[0.78rem] sm:text-[0.85rem] font-semibold inline-flex items-center gap-1.5 sm:gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeAdvancedFilterCount > 0
+                ? "border-[#9C6B12] bg-[#FAF4E8] text-[#9C6B12]"
+                : "border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C]"
+            }`}
+          >
+            <FiSliders className="w-3.5 h-3.5 shrink-0" />
+            <span>Filters</span>
+            {activeAdvancedFilterCount > 0 && (
+              <span className="bg-[#9C6B12] text-white text-[0.68rem] font-bold rounded-[4px] px-1.5 py-0.2 leading-tight font-['IBM_Plex_Mono',monospace]">
+                {activeAdvancedFilterCount}
+              </span>
+            )}
+          </button>
+
           {/* Copy for Excel */}
           <button
             type="button"
@@ -277,7 +367,7 @@ export default function JobSheet() {
           </button>
 
           {/* CSV */}
-          <button
+          {/* <button
             type="button"
             disabled={exportingCsv}
             onClick={handleDownloadCsv}
@@ -290,7 +380,7 @@ export default function JobSheet() {
               <path d="M12 4v12M7 11l5 5 5-5M4 20h16" />
             </svg>
             <span>{exportingCsv ? "Exporting..." : "CSV"}</span>
-          </button>
+          </button> */}
 
           {/* Download Excel */}
           <button
@@ -344,7 +434,9 @@ export default function JobSheet() {
         <JobSheetTable
           jobs={paginatedJobs}
           loading={loading && !loaded}
+          refreshing={loading && loaded}
           onRowClick={(job) => setSelectedJob(job)}
+          onRefresh={handleEmptyStateRefresh}
           scrollContainerRef={tableScrollRef}
           onScrollStateChange={setTableScrollState}
         />
@@ -370,6 +462,21 @@ export default function JobSheet() {
           const found = jobs.find((j) => j.id === jobId);
           if (found) setSelectedJob(found);
         }}
+      />
+
+      {/* Advanced Multi-Criteria Filter Modal */}
+      <JobFilterModal
+        isOpen={filterModalOpen}
+        onClose={() => setFilterModalOpen(false)}
+        jobs={jobs}
+        vaultOptions={vaultFilterOptions}
+        searchQuery={searchQuery}
+        selectedVault={selectedVault}
+        selectedSource={selectedSource}
+        selectedStatus={selectedStatus}
+        advancedFilters={advancedFilters}
+        onApply={handleApplyModalFilters}
+        onResetAll={handleResetAllFilters}
       />
 
       {/* Lightbox for Zooming Screenshot */}

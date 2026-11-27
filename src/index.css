@@ -407,3 +407,107 @@ html.dark .skeleton-shimmer {
   background-size: 200% 100%;
 }
 
+/* Dual-Thumb Range Slider (Filter Modal) */
+.jv-range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.jv-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2.5px solid #9C6B12;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.jv-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(156, 107, 18, 0.16);
+}
+
+.jv-range-input::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.14);
+}
+
+.jv-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2.5px solid #9C6B12;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  cursor: grab;
+}
+
+html.dark .jv-range-input::-webkit-slider-thumb,
+html.dark .jv-range-input::-moz-range-thumb {
+  background: #15202C;
+  border-color: #E0A838;
+}
+
+/* Scanning Magnifying Glass Lens Animation (No Jobs Empty State) */
+@keyframes jvLensScan {
+  0%,
+  100% {
+    transform: translate(-18px, -4px) rotate(-3deg);
+  }
+  25% {
+    transform: translate(16px, -9px) rotate(3deg);
+  }
+  50% {
+    transform: translate(20px, 5px) rotate(1deg);
+  }
+  75% {
+    transform: translate(-12px, 6px) rotate(-2deg);
+  }
+}
+
+.jv-lens-scan {
+  transform-origin: 96px 66px;
+  animation: jvLensScan 4.8s ease-in-out infinite;
+}
+
+/* Smooth Login <-> Forgot Password Form Transitions */
+@keyframes jvSlideFromRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(56px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes jvSlideFromLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-56px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.jv-slide-from-right {
+  animation: jvSlideFromRight 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.jv-slide-from-left {
+  animation: jvSlideFromLeft 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
