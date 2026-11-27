@@ -508,20 +508,20 @@ function SidebarFooter({
           {activeTab === "shortcuts" && (
             <div className="flex flex-col gap-1 text-[0.74rem] py-0.5">
               <NavLink
-                to="/ai_reading"
-                onClick={() => setIsOpen(false)}
-                className="px-2 py-1.5 rounded-[5px] hover:bg-[#F1F3F6] text-[#15202C] hover:text-[#9C6B12] transition-colors flex items-center justify-between"
-              >
-                <span>AI Reading Settings</span>
-                <span className="text-[0.65rem] text-[#8C9BAE] font-mono">/ai_reading</span>
-              </NavLink>
-              <NavLink
                 to="/rules"
                 onClick={() => setIsOpen(false)}
                 className="px-2 py-1.5 rounded-[5px] hover:bg-[#F1F3F6] text-[#15202C] hover:text-[#9C6B12] transition-colors flex items-center justify-between"
               >
                 <span>Vault Rules</span>
                 <span className="text-[0.65rem] text-[#8C9BAE] font-mono">/rules</span>
+              </NavLink>
+              <NavLink
+                to="/columns"
+                onClick={() => setIsOpen(false)}
+                className="px-2 py-1.5 rounded-[5px] hover:bg-[#F1F3F6] text-[#15202C] hover:text-[#9C6B12] transition-colors flex items-center justify-between"
+              >
+                <span>Sheet Columns</span>
+                <span className="text-[0.65rem] text-[#8C9BAE] font-mono">/columns</span>
               </NavLink>
               <NavLink
                 to="/activity"
@@ -741,26 +741,6 @@ export default function Sidebar({
       icon: (
         <>
           <path d="M4 5h16v14H4zM4 9h16M10 9v10" />
-        </>
-      ),
-    },
-    {
-      to: "/ai_reading",
-      label: "AI reading",
-      icon: (
-        <>
-          <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-          <rect x="7" y="7" width="10" height="10" rx="2" />
-          <path d="M10 12h4" />
-        </>
-      ),
-    },
-    {
-      to: "/integrations",
-      label: "Integrations",
-      icon: (
-        <>
-          <path d="M9 7H6a4 4 0 000 8h3M15 7h3a4 4 0 010 8h-3M8 11h8" />
         </>
       ),
     },

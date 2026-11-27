@@ -96,18 +96,18 @@ export const router = createBrowserRouter([
         path: "columns",
         element: <SheetColumns />,
       },
-      {
-        path: "ai_reading",
-        element: <AiReading />,
-      },
+      // {
+      //   path: "ai_reading",
+      //   element: <AiReading />,
+      // },
       {
         path: "ai",
         element: <Navigate to="/ai_reading" replace />,
       },
-      {
-        path: "integrations",
-        element: <Integrations />,
-      },
+      // {
+      //   path: "integrations",
+      //   element: <Integrations />,
+      // },
       {
         path: "activity",
         element: <ActivityLog />,
