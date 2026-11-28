@@ -6,6 +6,11 @@ import {
   deleteScreenshot,
   retryScreenshot,
 } from "../thunks/screenshotsThunks";
+import {
+  createDefaultPagination,
+  DEFAULT_PAGE_SIZE,
+  normalizePaginatedPayload,
+} from "../../utils/pagination";
 
 function formatScreenshotDate(rawDate) {
   if (!rawDate) return "";
@@ -70,6 +75,7 @@ function normalizeScreenshot(raw) {
 const initialState = {
   items: [],
   queue: { queued: 0, running: 0 },
+  pagination: createDefaultPagination(DEFAULT_PAGE_SIZE),
   loading: false,
   uploading: false,
   error: null,
@@ -103,14 +109,13 @@ const screenshotsSlice = createSlice({
       .addCase(fetchScreenshots.fulfilled, (state, action) => {
         state.loading = false;
         const payload = action.payload;
-        const list = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.items)
-          ? payload.items
-          : Array.isArray(payload?.results)
-          ? payload.results
-          : [];
-        state.items = list.map(normalizeScreenshot);
+        const reqArgs = action.meta?.arg || {};
+        const { items, pagination } = normalizePaginatedPayload(payload, {
+          defaultPage: reqArgs.page || 1,
+          defaultPageSize: reqArgs.page_size || DEFAULT_PAGE_SIZE,
+        });
+        state.items = items.map(normalizeScreenshot);
+        state.pagination = pagination;
         if (payload?.queue && typeof payload.queue === "object") {
           state.queue = {
             queued: Number(payload.queue.queued || 0),
@@ -137,7 +142,14 @@ const screenshotsSlice = createSlice({
       // deleteScreenshot
       .addCase(deleteScreenshot.fulfilled, (state, action) => {
         const deletedId = action.payload;
+        const existed = state.items.some((s) => s.id === deletedId);
         state.items = state.items.filter((s) => s.id !== deletedId);
+        if (existed && state.pagination) {
+          state.pagination.total = Math.max(
+            0,
+            Number(state.pagination.total || 0) - 1
+          );
+        }
       })
       // retryScreenshot
       .addCase(retryScreenshot.fulfilled, (state, action) => {

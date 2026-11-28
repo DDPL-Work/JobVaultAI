@@ -7,11 +7,19 @@ import {
   rejectJob,
   restoreJob,
 } from "../thunks/jobsThunks";
+import {
+  createDefaultPagination,
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_REVIEW_PAGE_SIZE,
+  normalizePaginatedPayload,
+} from "../../utils/pagination";
 
 const initialState = {
   items: [],
   total: 0,
+  pagination: createDefaultPagination(DEFAULT_PAGE_SIZE),
   reviewItems: [],
+  reviewPagination: createDefaultPagination(DEFAULT_REVIEW_PAGE_SIZE),
   loadingReview: false,
   loaded: false,
   reviewLoaded: false,
@@ -49,17 +57,14 @@ const jobsSlice = createSlice({
         state.loading = false;
         state.loaded = true;
         state.error = null;
-        const payload = action.payload;
-        if (Array.isArray(payload)) {
-          state.items = payload;
-          state.total = payload.length;
-        } else if (Array.isArray(payload?.items)) {
-          state.items = payload.items;
-          state.total = payload.count || payload.total || payload.items.length;
-        } else if (Array.isArray(payload?.results)) {
-          state.items = payload.results;
-          state.total = payload.count || payload.results.length;
-        }
+        const reqArgs = action.meta?.arg || {};
+        const { items, pagination } = normalizePaginatedPayload(action.payload, {
+          defaultPage: reqArgs.page || 1,
+          defaultPageSize: reqArgs.page_size || DEFAULT_PAGE_SIZE,
+        });
+        state.items = items;
+        state.total = pagination.total;
+        state.pagination = pagination;
       })
       .addCase(fetchJobs.rejected, (state, action) => {
         state.loading = false;
@@ -86,15 +91,13 @@ const jobsSlice = createSlice({
         state.loadingReview = false;
         state.reviewLoaded = true;
         state.reviewError = null;
-        const payload = action.payload;
-        const list = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.items)
-          ? payload.items
-          : Array.isArray(payload?.results)
-          ? payload.results
-          : [];
-        state.reviewItems = list;
+        const reqArgs = action.meta?.arg || {};
+        const { items, pagination } = normalizePaginatedPayload(action.payload, {
+          defaultPage: reqArgs.page || 1,
+          defaultPageSize: reqArgs.page_size || DEFAULT_REVIEW_PAGE_SIZE,
+        });
+        state.reviewItems = items;
+        state.reviewPagination = pagination;
       })
       .addCase(fetchReviewJobs.rejected, (state, action) => {
         state.loadingReview = false;
@@ -103,10 +106,17 @@ const jobsSlice = createSlice({
       // approveJob
       .addCase(approveJob.fulfilled, (state, action) => {
         const { jobId } = action.payload;
+        const wasInReview = state.reviewItems.some((j) => j.id === jobId);
         state.items = state.items.map((j) =>
           j.id === jobId ? { ...j, status: "synced" } : j
         );
         state.reviewItems = state.reviewItems.filter((j) => j.id !== jobId);
+        if (wasInReview && state.reviewPagination) {
+          state.reviewPagination.total = Math.max(
+            0,
+            Number(state.reviewPagination.total || 0) - 1
+          );
+        }
         if (state.selectedJob?.id === jobId) {
           state.selectedJob.status = "synced";
         }
@@ -114,10 +124,17 @@ const jobsSlice = createSlice({
       // rejectJob
       .addCase(rejectJob.fulfilled, (state, action) => {
         const { jobId } = action.payload;
+        const wasInReview = state.reviewItems.some((j) => j.id === jobId);
         state.items = state.items.map((j) =>
           j.id === jobId ? { ...j, status: "rejected" } : j
         );
         state.reviewItems = state.reviewItems.filter((j) => j.id !== jobId);
+        if (wasInReview && state.reviewPagination) {
+          state.reviewPagination.total = Math.max(
+            0,
+            Number(state.reviewPagination.total || 0) - 1
+          );
+        }
         if (state.selectedJob?.id === jobId) {
           state.selectedJob.status = "rejected";
         }
@@ -129,6 +146,14 @@ const jobsSlice = createSlice({
         state.items = state.items.map((j) =>
           j.id === jobId ? { ...j, ...(data || {}), status: nextStatus } : j
         );
+        if (
+          nextStatus === "review" &&
+          state.reviewPagination &&
+          !state.reviewItems.some((j) => j.id === jobId)
+        ) {
+          state.reviewPagination.total =
+            Number(state.reviewPagination.total || 0) + 1;
+        }
         if (state.selectedJob?.id === jobId) {
           state.selectedJob = {
             ...state.selectedJob,

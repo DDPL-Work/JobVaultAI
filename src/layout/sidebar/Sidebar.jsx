@@ -655,16 +655,15 @@ export default function Sidebar({
 }) {
   const stats = useSelector((state) => state.dashboard?.stats);
   const reviewItems = useSelector((state) => state.jobs?.reviewItems);
+  const reviewPaginationTotal = useSelector(
+    (state) => state.jobs?.reviewPagination?.total
+  );
   const reviewLoaded = useSelector((state) => state.jobs?.reviewLoaded);
-  const allJobs = useSelector((state) => state.jobs?.items);
-  const jobsLoaded = useSelector((state) => state.jobs?.loaded);
   const reviewCount =
     reviewCountProp !== undefined
       ? reviewCountProp
-      : jobsLoaded && Array.isArray(allJobs)
-      ? allJobs.filter((j) => j.status === "review").length
-      : reviewLoaded && Array.isArray(reviewItems)
-      ? reviewItems.length
+      : reviewLoaded
+      ? Number(reviewPaginationTotal ?? reviewItems?.length ?? 0)
       : Number(stats?.review ?? 0);
   const processingCount =
     processingCountProp !== undefined

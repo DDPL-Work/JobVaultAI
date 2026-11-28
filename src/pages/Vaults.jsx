@@ -46,7 +46,7 @@ export default function Vaults() {
 
   useEffect(() => {
     dispatch(fetchVaults());
-    dispatch(fetchJobs());
+    dispatch(fetchJobs({ page: 1, page_size: 100 }));
   }, [dispatch]);
 
   // Filter synced jobs per vault (Supports Cross-Vault Dual-Routing)

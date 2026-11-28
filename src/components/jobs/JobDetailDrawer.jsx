@@ -1,10 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { FiUpload, FiDownload, FiX } from "react-icons/fi";
 import { SOURCE_COLORS, VAULTS, getJobVaults } from "./jobsData";
 import SafeImage from "../common/SafeImage";
 import ConfidenceMeter from "../common/ConfidenceMeter";
+import ScreenshotLightbox from "../screenshots/ScreenshotLightbox";
+import SocialPostTemplateCard, {
+  downloadSocialTemplatePng,
+  renderSocialTemplateDataUrl,
+} from "./SocialPostTemplateCard";
 import { generateJobContent } from "../../apis/thunks/jobsThunks";
+
+const SOCIAL_LOGO_STORAGE_KEY = "jv_social_template_logo";
 
 /**
  * Intelligent Social Media Content Generator
@@ -168,6 +176,16 @@ export default function JobDetailDrawer({
   const [socialEngine, setSocialEngine] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [copiedPlatform, setCopiedPlatform] = useState(null);
+  const [templatePreviewUrl, setTemplatePreviewUrl] = useState("");
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [templateLogo, setTemplateLogo] = useState(() => {
+    try {
+      return localStorage.getItem(SOCIAL_LOGO_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const logoInputRef = useRef(null);
 
   const vaultOptions = useMemo(() => {
     const activeNames = Array.isArray(liveVaults)
@@ -194,6 +212,7 @@ export default function JobDetailDrawer({
 
   const handleCloseSocialModal = useCallback(() => {
     if (!socialModalOpen || socialModalClosing) return;
+    setTemplatePreviewUrl("");
     setSocialModalClosing(true);
     setTimeout(() => {
       setSocialModalOpen(false);
@@ -209,6 +228,7 @@ export default function JobDetailDrawer({
       setIsEditing(false);
       setFormFields({ ...job });
       setSocialModalOpen(false);
+      setTemplatePreviewUrl("");
       setSocialModalClosing(false);
       setHasLoadedLiveSocial(false);
       setSocialPosts(generateSocialPosts(job));
@@ -225,12 +245,16 @@ export default function JobDetailDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job]);
 
-  // Handle escape key (closes Social Post modal first, then drawer)
+  // Handle escape key (closes Template Preview -> Social Post modal -> drawer)
   useEffect(() => {
     if (!mountedJob) return;
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
+        if (templatePreviewUrl) {
+          setTemplatePreviewUrl("");
+          return;
+        }
         if (socialModalOpen) {
           handleCloseSocialModal();
           return;
@@ -241,7 +265,13 @@ export default function JobDetailDrawer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mountedJob, socialModalOpen, handleCloseSocialModal, handleClose]);
+  }, [
+    mountedJob,
+    templatePreviewUrl,
+    socialModalOpen,
+    handleCloseSocialModal,
+    handleClose,
+  ]);
 
   const handleStatus = async (newStatus) => {
     if (!mountedJob || isSubmitting) return;
@@ -277,6 +307,91 @@ export default function JobDetailDrawer({
       // keep editing open on API error
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Upload / Replace / Remove Brand Logo for Social Post Template
+  const handleTriggerLogoUpload = () => {
+    logoInputRef.current?.click();
+  };
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, WEBP, SVG)");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning("Logo image must be under 5 MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!dataUrl) return;
+      setTemplateLogo(dataUrl);
+      try {
+        localStorage.setItem(SOCIAL_LOGO_STORAGE_KEY, dataUrl);
+      } catch {
+        // ignore storage quota errors
+      }
+      toast.success("Logo added to post template");
+    };
+    reader.onerror = () => {
+      toast.error("Could not read the selected logo file");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setTemplateLogo("");
+    try {
+      localStorage.removeItem(SOCIAL_LOGO_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    toast.info("Template logo removed");
+  };
+
+  const handleDownloadTemplate = async () => {
+    const targetJob = mountedJob || job;
+    const text =
+      socialPlatform === "linkedin" ? socialPosts.linkedin : socialPosts.instagram;
+    setIsDownloadingTemplate(true);
+    try {
+      const ok = await downloadSocialTemplatePng({
+        job: targetJob,
+        platform: socialPlatform,
+        logoUrl: templateLogo,
+        postText: text,
+      });
+      if (ok) {
+        toast.success("Post template PNG downloaded!");
+      }
+    } catch {
+      toast.error("Could not generate template image");
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  const handleOpenTemplatePreview = async () => {
+    const targetJob = mountedJob || job;
+    const text =
+      socialPlatform === "linkedin" ? socialPosts.linkedin : socialPosts.instagram;
+    try {
+      const url = await renderSocialTemplateDataUrl({
+        job: targetJob,
+        logoUrl: templateLogo,
+        postText: text,
+      });
+      setTemplatePreviewUrl(url);
+    } catch {
+      toast.error("Could not render template preview");
     }
   };
 
@@ -829,7 +944,7 @@ export default function JobDetailDrawer({
             aria-modal="true"
             aria-label="AI Social Post Generator"
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-[780px] bg-white border border-[#DCE1E8] rounded-[8px] shadow-[0_24px_60px_rgba(15,23,42,0.28)] overflow-hidden flex flex-col max-h-[90vh] ${
+            className={`w-full max-w-[1000px] bg-white border border-[#DCE1E8] rounded-[8px] shadow-[0_24px_60px_rgba(15,23,42,0.28)] overflow-hidden flex flex-col max-h-[90vh] ${
               socialModalClosing ? "jv-modal-out" : "jv-modal-in"
             }`}
           >
@@ -872,7 +987,7 @@ export default function JobDetailDrawer({
               </button>
             </div>
 
-            {/* Platform Tabs + Regenerate Row */}
+            {/* Platform Tabs + Upload Logo + Regenerate Row */}
             <div className="px-5 py-3 bg-white border-b border-[#DCE1E8] flex items-center justify-between gap-3 flex-wrap shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <button
@@ -912,89 +1027,167 @@ export default function JobDetailDrawer({
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleRegenerateSocial()}
-                disabled={isRegenerating}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.76rem] font-semibold rounded-[6px] border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] transition-all cursor-pointer disabled:opacity-50 select-none shadow-2xs"
-                title="Regenerate with AI"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`w-3.5 h-3.5 stroke-current fill-none stroke-[2] ${
-                    isRegenerating ? "animate-spin text-[#9C6B12]" : ""
-                  }`}
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoFileChange}
+                  className="hidden"
+                />
+
+                {templateLogo ? (
+                  <div className="inline-flex items-center gap-1 rounded-[6px] border border-[#E5C98E] bg-[#FAF4E8] px-2 py-1 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={handleTriggerLogoUpload}
+                      className="inline-flex items-center gap-1.5 text-[0.76rem] font-semibold text-[#9C6B12] hover:text-[#7D540B] cursor-pointer select-none"
+                      title="Change template logo"
+                    >
+                      <img
+                        src={templateLogo}
+                        alt="Template logo"
+                        className="w-4 h-4 rounded-[3px] object-contain bg-white border border-[#DCE1E8]"
+                      />
+                      <span>Change Logo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="w-4 h-4 rounded-[3px] text-[#9C6B12] hover:text-[#A8281F] hover:bg-[#F8DEDB]/50 flex items-center justify-center transition-colors cursor-pointer"
+                      title="Remove logo"
+                      aria-label="Remove uploaded logo"
+                    >
+                      <FiX className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleTriggerLogoUpload}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.76rem] font-semibold rounded-[6px] border border-[#E5C98E] bg-[#FAF4E8] hover:bg-[#F5EAD3] text-[#9C6B12] transition-all cursor-pointer select-none shadow-2xs"
+                    title="Upload company or brand logo for post template"
+                  >
+                    <FiUpload className="w-3.5 h-3.5" />
+                    <span>Upload Logo</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateSocial()}
+                  disabled={isRegenerating}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.76rem] font-semibold rounded-[6px] border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] transition-all cursor-pointer disabled:opacity-50 select-none shadow-2xs"
+                  title="Regenerate with AI"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                <span>{isRegenerating ? "Generating..." : "Regenerate"}</span>
-              </button>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`w-3.5 h-3.5 stroke-current fill-none stroke-[2] ${
+                      isRegenerating ? "animate-spin text-[#9C6B12]" : ""
+                    }`}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>{isRegenerating ? "Generating..." : "Regenerate"}</span>
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-3">
               {isRegenerating ? (
-                <div className="min-h-[220px] flex flex-col items-center justify-center gap-2.5 text-center text-[#5A6777]">
+                <div className="min-h-[260px] flex flex-col items-center justify-center gap-2.5 text-center text-[#5A6777]">
                   <span className="w-6 h-6 rounded-full border-2 border-[#DCE1E8] border-t-[#9C6B12] animate-spin" />
                   <span className="text-[0.84rem] font-medium">
                     AI is reading job details &amp; drafting social posts...
                   </span>
                 </div>
               ) : (
-                <>
-                  <div className="flex items-center justify-between text-[0.74rem] text-[#5A6777]">
-                    <span className="font-semibold text-[#15202C]">
-                      {socialPlatform === "linkedin"
-                        ? "LinkedIn Post Content"
-                        : "Instagram Caption Content"}
-                    </span>
-                    <span className="font-mono text-[0.7rem]">
-                      {socialPlatform === "linkedin"
-                        ? `${socialPosts.linkedin?.length || 0} characters`
-                        : `${socialPosts.instagram?.length || 0} characters`}
-                    </span>
-                  </div>
-
-                  <textarea
-                    rows={10}
-                    value={
-                      socialPlatform === "linkedin"
-                        ? socialPosts.linkedin
-                        : socialPosts.instagram
-                    }
-                    onChange={(e) => {
-                      const text = e.target.value;
-                      setSocialPosts((prev) => ({
-                        ...prev,
-                        [socialPlatform]: text,
-                      }));
-                    }}
-                    placeholder="Social post content..."
-                    className="w-full bg-[#FAFBFD] border border-[#DCE1E8] rounded-[6px] p-3.5 text-[0.82rem] text-[#15202C] leading-relaxed resize-y focus:outline-none focus:border-[#9C6B12] focus:ring-1 focus:ring-[#9C6B12] font-normal transition-all"
-                  />
-
-                  {/* Hashtags Bar */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                    <span className="text-[0.7rem] text-[#5A6777] font-semibold mr-1">
-                      Hashtags:
-                    </span>
-                    {(socialPlatform === "linkedin"
-                      ? socialPosts.hashtags?.linkedin
-                      : socialPosts.hashtags?.instagram
-                    )?.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="font-mono text-[0.68rem] bg-[#F6F7F9] border border-[#DCE1E8] rounded-[4px] px-2 py-0.5 text-[#5A6777]"
-                      >
-                        {tag}
+                <div className="grid grid-cols-1 md:grid-cols-[385px_minmax(0,1fr)] gap-4 items-stretch">
+                  {/* Left: Branded Visual Post Template with Uploaded Logo */}
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <div className="flex items-center justify-between text-[0.74rem] text-[#5A6777]">
+                      <span className="font-semibold text-[#15202C]">
+                        Post Template Preview
                       </span>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={handleOpenTemplatePreview}
+                        className="text-[0.68rem] font-semibold text-[#3E6B48] hover:underline cursor-pointer"
+                      >
+                        Click card to full preview
+                      </button>
+                    </div>
+
+                    <SocialPostTemplateCard
+                      job={activeJob}
+                      logoUrl={templateLogo}
+                      postText={
+                        socialPlatform === "linkedin"
+                          ? socialPosts.linkedin
+                          : socialPosts.instagram
+                      }
+                      interactive
+                      onPreviewClick={handleOpenTemplatePreview}
+                      onUploadLogoClick={handleTriggerLogoUpload}
+                    />
                   </div>
-                </>
+
+                  {/* Right: Editable Social Copy + Hashtags (Matches Template Height) */}
+                  <div className="flex flex-col gap-2 min-w-0 h-full">
+                    <div className="flex items-center justify-between text-[0.74rem] text-[#5A6777] shrink-0">
+                      <span className="font-semibold text-[#15202C]">
+                        {socialPlatform === "linkedin"
+                          ? "LinkedIn Post Content"
+                          : "Instagram Caption Content"}
+                      </span>
+                      <span className="font-mono text-[0.7rem]">
+                        {socialPlatform === "linkedin"
+                          ? `${socialPosts.linkedin?.length || 0} characters`
+                          : `${socialPosts.instagram?.length || 0} characters`}
+                      </span>
+                    </div>
+
+                    <textarea
+                      value={
+                        socialPlatform === "linkedin"
+                          ? socialPosts.linkedin
+                          : socialPosts.instagram
+                      }
+                      onChange={(e) => {
+                        const text = e.target.value;
+                        setSocialPosts((prev) => ({
+                          ...prev,
+                          [socialPlatform]: text,
+                        }));
+                      }}
+                      placeholder="Social post content..."
+                      className="w-full flex-1 min-h-[260px] bg-[#FAFBFD] border border-[#DCE1E8] rounded-[6px] p-3.5 text-[0.82rem] text-[#15202C] leading-relaxed resize-y focus:outline-none focus:border-[#9C6B12] focus:ring-1 focus:ring-[#9C6B12] font-normal transition-all"
+                    />
+
+                    {/* Hashtags Bar */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5 shrink-0">
+                      <span className="text-[0.7rem] text-[#5A6777] font-semibold mr-1">
+                        Hashtags:
+                      </span>
+                      {(socialPlatform === "linkedin"
+                        ? socialPosts.hashtags?.linkedin
+                        : socialPosts.hashtags?.instagram
+                      )?.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="font-mono text-[0.68rem] bg-[#F6F7F9] border border-[#DCE1E8] rounded-[4px] px-2 py-0.5 text-[#5A6777]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1008,53 +1201,79 @@ export default function JobDetailDrawer({
                 Close
               </button>
 
-              <button
-                type="button"
-                disabled={isRegenerating}
-                onClick={() => handleCopySocialPost(socialPlatform)}
-                className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-[6px] font-semibold text-[0.82rem] transition-all cursor-pointer shadow-sm select-none disabled:opacity-50 ${
-                  copiedPlatform === socialPlatform
-                    ? "bg-[#24734A] text-white"
-                    : socialPlatform === "linkedin"
-                    ? "bg-[#0A66C2] hover:bg-[#084e96] text-white"
-                    : "bg-gradient-to-r from-[#D6336C] to-[#E1306C] hover:opacity-95 text-white"
-                }`}
-              >
-                {copiedPlatform === socialPlatform ? (
-                  <>
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    <span>Copied to Clipboard!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 stroke-current fill-none stroke-[2]"
-                    >
-                      <rect x="9" y="9" width="13" height="13" rx="2" />
-                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                    </svg>
-                    <span>
-                      {socialPlatform === "linkedin"
-                        ? "Copy for LinkedIn"
-                        : "Copy for Instagram"}
-                    </span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  disabled={isRegenerating || isDownloadingTemplate}
+                  onClick={handleDownloadTemplate}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[6px] border border-[#DCE1E8] bg-white hover:border-[#5A6777] text-[#15202C] font-semibold text-[0.82rem] transition-colors cursor-pointer select-none disabled:opacity-50"
+                >
+                  <FiDownload className="w-3.5 h-3.5" />
+                  <span>
+                    {isDownloadingTemplate ? "Exporting..." : "Download Template"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isRegenerating}
+                  onClick={() => handleCopySocialPost(socialPlatform)}
+                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-[6px] font-semibold text-[0.82rem] transition-all cursor-pointer shadow-sm select-none disabled:opacity-50 ${
+                    copiedPlatform === socialPlatform
+                      ? "bg-[#24734A] text-white"
+                      : socialPlatform === "linkedin"
+                      ? "bg-[#0A66C2] hover:bg-[#084e96] text-white"
+                      : "bg-gradient-to-r from-[#D6336C] to-[#E1306C] hover:opacity-95 text-white"
+                  }`}
+                >
+                  {copiedPlatform === socialPlatform ? (
+                    <>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span>Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-3.5 h-3.5 stroke-current fill-none stroke-[2]"
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                      </svg>
+                      <span>
+                        {socialPlatform === "linkedin"
+                          ? "Copy for LinkedIn"
+                          : "Copy for Instagram"}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Full-Viewport Fit Lightbox Preview (Matches Screenshot / PDF Viewer Style) */}
+      <ScreenshotLightbox
+        imageSrc={socialModalOpen ? templatePreviewUrl : null}
+        onClose={() => setTemplatePreviewUrl("")}
+        onDownload={handleDownloadTemplate}
+        downloading={isDownloadingTemplate}
+        downloadLabel="Download"
+        imageRoundedClass="rounded-none"
+        zIndexClass="z-[80]"
+        toolbarZClass="z-[82]"
+      />
     </div>
   );
 }

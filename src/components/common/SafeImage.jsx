@@ -1,5 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../../apis/apiClient";
+
+function isInlineImageSrc(src) {
+  return (
+    typeof src === "string" &&
+    (src.startsWith("data:") || src.startsWith("blob:"))
+  );
+}
 
 /**
  * Image component with smooth fade-in shimmer and graceful broken-image fallback
@@ -12,17 +19,28 @@ export default function SafeImage({
   onClick,
   title,
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [errored, setErrored] = useState(false);
-
+  const imgRef = useRef(null);
   const resolvedSrc =
     src && typeof src === "string" && src.startsWith("/")
       ? `${API_BASE_URL}${src}`
       : src;
+  const isInline = isInlineImageSrc(resolvedSrc);
+
+  const [loaded, setLoaded] = useState(() => isInline);
+  const [errored, setErrored] = useState(false);
 
   useEffect(() => {
-    setLoaded(false);
     setErrored(false);
+    if (isInlineImageSrc(resolvedSrc)) {
+      setLoaded(true);
+      return;
+    }
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) {
+      setLoaded(true);
+    } else {
+      setLoaded(false);
+    }
   }, [resolvedSrc]);
 
   if (!resolvedSrc || errored) {
@@ -46,16 +64,17 @@ export default function SafeImage({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      {!loaded && (
+      {!loaded && !isInline && (
         <div
           className="absolute inset-0 skeleton-shimmer"
           aria-hidden="true"
         />
       )}
       <img
+        ref={imgRef}
         src={resolvedSrc}
         alt={alt}
-        loading="lazy"
+        loading={isInline ? "eager" : "lazy"}
         onLoad={() => setLoaded(true)}
         onError={() => {
           setErrored(true);
@@ -64,7 +83,7 @@ export default function SafeImage({
         onClick={onClick}
         title={title}
         className={`${className} transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
+          loaded || isInline ? "opacity-100" : "opacity-0"
         }`}
       />
     </div>

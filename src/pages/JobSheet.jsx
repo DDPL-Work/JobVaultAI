@@ -31,22 +31,30 @@ import {
   WORKBOOK_TABS,
 } from "../utils/excelExport";
 import { fetchVaults } from "../apis/thunks/vaultsThunks";
+import { fetchReviewJobs } from "../apis/thunks/jobsThunks";
+import {
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  getEffectivePaginationView,
+  getRequestServerPage,
+} from "../utils/pagination";
 
 export default function JobSheet() {
   const dispatch = useDispatch();
-  const { items: jobs, loading, loaded, error } = useSelector(
+  const { items: jobs, pagination, loading, loaded, error } = useSelector(
     (state) => state.jobs
   );
   const { vaults: dynamicVaults } = useSelector((state) => state.vaults);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedVault, setSelectedVault] = useState("all");
   const [selectedSource, setSelectedSource] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -70,7 +78,42 @@ export default function JobSheet() {
   };
 
   useEffect(() => {
-    dispatch(fetchJobs());
+    if (!searchQuery) {
+      setDebouncedSearch("");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const serverPage = getRequestServerPage(currentPage, pageSize, pagination);
+
+  const jobsQueryParams = useMemo(
+    () => ({
+      page: serverPage,
+      page_size: pageSize,
+      vault: selectedVault,
+      source: selectedSource,
+      status: selectedStatus,
+      q: debouncedSearch.trim(),
+    }),
+    [
+      serverPage,
+      pageSize,
+      selectedVault,
+      selectedSource,
+      selectedStatus,
+      debouncedSearch,
+    ]
+  );
+
+  useEffect(() => {
+    dispatch(fetchJobs(jobsQueryParams));
+  }, [dispatch, jobsQueryParams]);
+
+  useEffect(() => {
     dispatch(fetchVaults());
   }, [dispatch]);
 
@@ -168,14 +211,19 @@ export default function JobSheet() {
 
   const handleEmptyStateRefresh = async () => {
     handleResetAllFilters();
-    await Promise.all([dispatch(fetchJobs()), dispatch(fetchVaults())]);
+    await Promise.all([
+      dispatch(fetchJobs({ page: 1, page_size: pageSize })),
+      dispatch(fetchVaults()),
+    ]);
   };
 
-  // Paginated slice of filtered jobs
-  const paginatedJobs = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredJobs.slice(start, start + pageSize);
-  }, [filteredJobs, currentPage, pageSize]);
+  // Current page sliced cleanly if backend returned a larger minimum batch
+  const paginationView = useMemo(
+    () =>
+      getEffectivePaginationView(filteredJobs, pagination, currentPage, pageSize),
+    [filteredJobs, pagination, currentPage, pageSize]
+  );
+  const paginatedJobs = paginationView.visibleItems;
 
   // Handle filter changes and reset to page 1
   const handleSearchChange = (q) => {
@@ -284,14 +332,15 @@ export default function JobSheet() {
           : "Job status updated"
       );
       dispatch(fetchDashboardStats());
-      dispatch(fetchJobs());
+      dispatch(fetchJobs(jobsQueryParams));
+      dispatch(fetchReviewJobs());
       dispatch(fetchVaults());
     } catch (err) {
       toast.error(
         (typeof err === "string" ? err : err?.message) ||
           "Failed to update job status"
       );
-      dispatch(fetchJobs());
+      dispatch(fetchJobs(jobsQueryParams));
       throw err;
     }
   };
@@ -406,7 +455,7 @@ export default function JobSheet() {
           compact
           title="Could not sync job sheet"
           message={error}
-          onRetry={() => dispatch(fetchJobs())}
+          onRetry={() => dispatch(fetchJobs(jobsQueryParams))}
           retrying={loading}
         />
       )}
@@ -423,7 +472,7 @@ export default function JobSheet() {
           onSourceChange={handleSourceChange}
           selectedStatus={selectedStatus}
           onStatusChange={handleStatusChange}
-          totalJobsCount={filteredJobs.length}
+          totalJobsCount={paginationView.total}
           canScrollLeft={tableScrollState.canScrollLeft}
           canScrollRight={tableScrollState.canScrollRight}
           onScrollLeft={() => handleScrollTable("left")}
@@ -443,11 +492,20 @@ export default function JobSheet() {
 
         {/* Pagination Controls */}
         <JobSheetPagination
-          totalItems={filteredJobs.length}
-          currentPage={currentPage}
+          totalItems={paginationView.total}
+          currentPage={paginationView.page}
           pageSize={pageSize}
+          totalPages={paginationView.totalPages}
+          hasNext={paginationView.hasNext}
+          hasPrev={paginationView.hasPrev}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          itemLabel="jobs"
+          loading={loading}
           onPageChange={setCurrentPage}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       </div>
 
