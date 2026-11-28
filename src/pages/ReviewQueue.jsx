@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import ReviewCard from "../components/review/ReviewCard";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import ErrorFallback from "../components/common/ErrorFallback";
+import PaginationControls from "../components/common/PaginationControls";
 import { ReviewQueueSkeleton } from "../components/common/LoadingSkeletons";
 import {
   fetchReviewJobs,
@@ -11,21 +12,38 @@ import {
   rejectJob,
 } from "../apis/thunks/jobsThunks";
 import { fetchDashboardStats } from "../apis/thunks/dashboardThunks";
+import {
+  DEFAULT_REVIEW_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  getEffectivePaginationView,
+  getRequestServerPage,
+} from "../utils/pagination";
 
 export default function ReviewQueue() {
   const dispatch = useDispatch();
   const {
     reviewItems: reviewJobs,
+    reviewPagination,
     loadingReview,
     reviewError,
   } = useSelector((state) => state.jobs);
 
   const [zoomImage, setZoomImage] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_REVIEW_PAGE_SIZE);
+
+  const serverPage = getRequestServerPage(currentPage, pageSize, reviewPagination);
+  const paginationView = getEffectivePaginationView(
+    reviewJobs,
+    reviewPagination,
+    currentPage,
+    pageSize
+  );
 
   useEffect(() => {
-    dispatch(fetchReviewJobs());
-  }, [dispatch]);
+    dispatch(fetchReviewJobs({ page: serverPage, page_size: pageSize }));
+  }, [dispatch, serverPage, pageSize]);
 
   const handleApprove = async (updatedJob) => {
     setSubmittingId(updatedJob.id);
@@ -50,6 +68,11 @@ export default function ReviewQueue() {
       await dispatch(approveJob({ jobId: updatedJob.id, updates })).unwrap();
       toast.success(`Approved & added to sheet (${updatedJob.code})`);
       dispatch(fetchDashboardStats());
+      if (paginationView.visibleItems.length <= 1 && currentPage > 1) {
+        setCurrentPage((p) => Math.max(1, p - 1));
+      } else {
+        dispatch(fetchReviewJobs({ page: serverPage, page_size: pageSize }));
+      }
     } catch (err) {
       toast.error(
         (typeof err === "string" ? err : err?.message) ||
@@ -66,6 +89,11 @@ export default function ReviewQueue() {
       await dispatch(rejectJob(jobId)).unwrap();
       toast.info("Job rejected");
       dispatch(fetchDashboardStats());
+      if (paginationView.visibleItems.length <= 1 && currentPage > 1) {
+        setCurrentPage((p) => Math.max(1, p - 1));
+      } else {
+        dispatch(fetchReviewJobs({ page: serverPage, page_size: pageSize }));
+      }
     } catch (err) {
       toast.error(
         (typeof err === "string" ? err : err?.message) ||
@@ -94,7 +122,9 @@ export default function ReviewQueue() {
           compact
           title="Could not refresh review queue"
           message={reviewError}
-          onRetry={() => dispatch(fetchReviewJobs())}
+          onRetry={() =>
+            dispatch(fetchReviewJobs({ page: serverPage, page_size: pageSize }))
+          }
           retrying={loadingReview}
         />
       )}
@@ -108,12 +138,14 @@ export default function ReviewQueue() {
             <ErrorFallback
               title="Could not load review queue"
               message={reviewError}
-              onRetry={() => dispatch(fetchReviewJobs())}
+              onRetry={() =>
+                dispatch(fetchReviewJobs({ page: serverPage, page_size: pageSize }))
+              }
               retrying={loadingReview}
             />
           </div>
-        ) : reviewJobs.length > 0 ? (
-          reviewJobs.map((job) => (
+        ) : paginationView.visibleItems.length > 0 ? (
+          paginationView.visibleItems.map((job) => (
             <ReviewCard
               key={job.id}
               job={job}
@@ -131,6 +163,24 @@ export default function ReviewQueue() {
             </span>
           </div>
         )}
+
+        {/* Pagination Controls (Default 10; options 10, 15, 25, 50, 100) */}
+        <PaginationControls
+          totalItems={paginationView.total}
+          currentPage={paginationView.page}
+          pageSize={pageSize}
+          totalPages={paginationView.totalPages}
+          hasNext={paginationView.hasNext}
+          hasPrev={paginationView.hasPrev}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          itemLabel="jobs"
+          loading={loadingReview}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Lightbox for zooming screenshot */}

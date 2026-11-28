@@ -1,12 +1,19 @@
 import ScreenshotItem from "./ScreenshotItem";
 import { ScreenshotsListSkeleton } from "../common/LoadingSkeletons";
 import ErrorFallback from "../common/ErrorFallback";
+import PaginationControls from "../common/PaginationControls";
+import { PAGE_SIZE_OPTIONS } from "../../utils/pagination";
 
 export default function ScreenshotList({
   items = [],
   loading = false,
   error = null,
   queueInfo = "Queue is empty",
+  pagination,
+  currentPage = 1,
+  pageSize = 10,
+  onPageChange,
+  onPageSizeChange,
   onZoom,
   onDelete,
   onRetry,
@@ -58,6 +65,23 @@ export default function ScreenshotList({
           </div>
         )}
       </div>
+
+      {/* Server-Side Pagination Controls */}
+      {pagination && (
+        <PaginationControls
+          totalItems={pagination.total}
+          currentPage={pagination.page ?? currentPage}
+          pageSize={pageSize}
+          totalPages={pagination.totalPages ?? pagination.total_pages}
+          hasNext={pagination.hasNext ?? pagination.has_next}
+          hasPrev={pagination.hasPrev ?? pagination.has_prev}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          itemLabel="screenshots"
+          loading={loading}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+        />
+      )}
     </div>
   );
 }

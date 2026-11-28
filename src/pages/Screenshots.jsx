@@ -5,6 +5,7 @@ import ScreenshotUploadZone from "../components/screenshots/ScreenshotUploadZone
 import ScreenshotList from "../components/screenshots/ScreenshotList";
 import ScreenshotLightbox from "../components/screenshots/ScreenshotLightbox";
 import UploadProgressPopup from "../components/screenshots/UploadProgressPopup";
+import DeleteScreenshotModal from "../components/screenshots/DeleteScreenshotModal";
 import JobDetailDrawer from "../components/jobs/JobDetailDrawer";
 import ErrorFallback from "../components/common/ErrorFallback";
 import {
@@ -17,6 +18,7 @@ import {
 import { updateScreenshotJobStatus } from "../apis/slices/screenshotsSlice";
 import {
   fetchJobs,
+  fetchReviewJobs,
   updateJob,
   approveJob,
   rejectJob,
@@ -24,12 +26,18 @@ import {
 } from "../apis/thunks/jobsThunks";
 import { fetchDashboardStats } from "../apis/thunks/dashboardThunks";
 import { localUpdateJobStatus } from "../apis/slices/jobsSlice";
+import {
+  DEFAULT_PAGE_SIZE,
+  getEffectivePaginationView,
+  getRequestServerPage,
+} from "../utils/pagination";
 
 export default function Screenshots() {
   const dispatch = useDispatch();
   const {
     items: screenshots,
     queue,
+    pagination,
     loading,
     error,
   } = useSelector((state) => state.screenshots);
@@ -37,6 +45,10 @@ export default function Screenshots() {
 
   const [selectedJob, setSelectedJob] = useState(null);
   const [zoomImage, setZoomImage] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [uploadState, setUploadState] = useState(null);
   const [completionState, setCompletionState] = useState(null);
   const progressTimerRef = useRef(null);
@@ -51,9 +63,20 @@ export default function Screenshots() {
     };
   }, []);
 
-  // Load live screenshots and jobs on mount
+  const serverPage = getRequestServerPage(currentPage, pageSize, pagination);
+  const paginationView = getEffectivePaginationView(
+    screenshots,
+    pagination,
+    currentPage,
+    pageSize
+  );
+
+  // Load live screenshots for current page + jobs on mount
   useEffect(() => {
-    dispatch(fetchScreenshots());
+    dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }));
+  }, [dispatch, serverPage, pageSize]);
+
+  useEffect(() => {
     dispatch(fetchJobs());
   }, [dispatch]);
 
@@ -75,12 +98,12 @@ export default function Screenshots() {
   useEffect(() => {
     if (runningCount === 0) return;
     const timer = setInterval(() => {
-      dispatch(fetchScreenshots());
+      dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }));
       dispatch(fetchDashboardStats());
       dispatch(fetchJobs());
     }, 3000);
     return () => clearInterval(timer);
-  }, [runningCount, dispatch]);
+  }, [runningCount, serverPage, pageSize, dispatch]);
 
   // Upload files (images / multi-page PDFs / multi-part combine) directly to live API
   const handleFilesSelected = useCallback(
@@ -142,8 +165,10 @@ export default function Screenshots() {
         setUploadState((prev) =>
           prev ? { ...prev, progress: 100, status: "done" } : null
         );
-        await dispatch(fetchScreenshots());
+        setCurrentPage(1);
+        await dispatch(fetchScreenshots({ page: 1, page_size: pageSize }));
         dispatch(fetchJobs());
+        dispatch(fetchReviewJobs());
         dispatch(fetchDashboardStats());
 
         dismissTimerRef.current = setTimeout(() => {
@@ -169,19 +194,38 @@ export default function Screenshots() {
         toast.error(msg);
       }
     },
-    [dispatch]
+    [dispatch, pageSize]
   );
 
-  // Delete screenshot via live API
-  const handleDeleteScreenshot = async (id) => {
+  // Open confirmation modal before deleting a screenshot
+  const handleRequestDelete = (id) => {
+    const target = screenshots.find((s) => s.id === id);
+    setDeleteTarget(target || { id });
+  };
+
+  // Delete screenshot via live API after confirmation
+  const handleConfirmDelete = async (id) => {
+    if (!id || isDeleting) return;
+    setIsDeleting(true);
     try {
       await dispatch(deleteScreenshot(id)).unwrap();
+      setDeleteTarget(null);
       toast.success("Screenshot removed");
+      if (paginationView.visibleItems.length <= 1 && currentPage > 1) {
+        setCurrentPage((prev) => Math.max(1, prev - 1));
+      } else {
+        dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }));
+      }
+      dispatch(fetchDashboardStats());
+      dispatch(fetchJobs());
+      dispatch(fetchReviewJobs());
     } catch (err) {
       const msg =
         (typeof err === "string" ? err : err?.message) ||
         "Failed to remove screenshot";
       toast.error(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -190,7 +234,7 @@ export default function Screenshots() {
     try {
       await dispatch(retryScreenshot(id)).unwrap();
       toast.info("Screenshot re-queued for AI reading");
-      dispatch(fetchScreenshots());
+      dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }));
     } catch (err) {
       const msg =
         (typeof err === "string" ? err : err?.message) ||
@@ -254,7 +298,7 @@ export default function Screenshots() {
         (typeof err === "string" ? err : err?.message) ||
           "Failed to update job status"
       );
-      dispatch(fetchScreenshots());
+      dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }));
       throw err;
     }
   };
@@ -312,22 +356,44 @@ export default function Screenshots() {
           compact
           title="Live sync interrupted"
           message={error}
-          onRetry={() => dispatch(fetchScreenshots())}
+          onRetry={() =>
+            dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }))
+          }
           retrying={loading}
         />
       )}
 
       {/* Recent Screenshots List */}
       <ScreenshotList
-        items={screenshots}
+        items={paginationView.visibleItems}
         loading={loading}
         error={error}
         queueInfo={queueInfo}
+        pagination={paginationView}
+        currentPage={paginationView.page}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setCurrentPage(1);
+        }}
         onZoom={(img) => setZoomImage(img)}
-        onDelete={handleDeleteScreenshot}
+        onDelete={handleRequestDelete}
         onRetry={handleRetryScreenshot}
-        onRefresh={() => dispatch(fetchScreenshots())}
+        onRefresh={() =>
+          dispatch(fetchScreenshots({ page: serverPage, page_size: pageSize }))
+        }
         onOpenJob={handleOpenJob}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteScreenshotModal
+        screenshot={deleteTarget}
+        deleting={isDeleting}
+        onClose={() => {
+          if (!isDeleting) setDeleteTarget(null);
+        }}
+        onConfirm={handleConfirmDelete}
       />
 
       {/* Slide-over Job Detail Drawer with smooth transitions */}

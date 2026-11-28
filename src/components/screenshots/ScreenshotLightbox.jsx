@@ -1,12 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FiZoomIn, FiZoomOut, FiRotateCcw, FiX } from "react-icons/fi";
+import { FiZoomIn, FiZoomOut, FiRotateCcw, FiX, FiDownload } from "react-icons/fi";
 import SafeImage from "../common/SafeImage";
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
 const ZOOM_STEP = 0.25;
 
-export default function ScreenshotLightbox({ imageSrc, onClose }) {
+export default function ScreenshotLightbox({
+  imageSrc,
+  onClose,
+  onDownload,
+  downloading = false,
+  downloadLabel = "Download",
+  zIndexClass = "z-[70]",
+  toolbarZClass = "z-[72]",
+  imageRoundedClass = "rounded-[6px]",
+}) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -128,14 +137,14 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-[#05080C]/92 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden"
+      className={`fixed inset-0 ${zIndexClass} bg-[#05080C]/92 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden`}
       onClick={onClose}
       onWheel={handleWheel}
     >
       {/* Top Floating Zoom Toolbar */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="fixed top-4 right-4 sm:top-5 sm:right-6 z-[72] flex items-center gap-1 bg-[#15202C]/90 border border-white/15 backdrop-blur-md rounded-[8px] px-2 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-white"
+        className={`fixed top-3.5 right-3.5 sm:top-4 sm:right-5 ${toolbarZClass} flex items-center gap-0.5 bg-[#15202C]/92 border border-white/15 backdrop-blur-md rounded-[6px] px-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-white`}
       >
         <button
           type="button"
@@ -143,12 +152,12 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
           disabled={scale <= MIN_SCALE}
           title="Zoom out (-)"
           aria-label="Zoom out"
-          className="w-8 h-8 rounded-[6px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="w-7 h-7 rounded-[5px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
-          <FiZoomOut className="w-4 h-4" />
+          <FiZoomOut className="w-3.5 h-3.5" />
         </button>
 
-        <span className="font-['IBM_Plex_Mono',monospace] text-[0.76rem] font-semibold min-w-[48px] text-center tabular-nums text-white/90">
+        <span className="font-['IBM_Plex_Mono',monospace] text-[0.7rem] font-semibold min-w-[38px] text-center tabular-nums text-white/90">
           {zoomPercent}%
         </span>
 
@@ -158,9 +167,9 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
           disabled={scale >= MAX_SCALE}
           title="Zoom in (+)"
           aria-label="Zoom in"
-          className="w-8 h-8 rounded-[6px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="w-7 h-7 rounded-[5px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
-          <FiZoomIn className="w-4 h-4" />
+          <FiZoomIn className="w-3.5 h-3.5" />
         </button>
 
         <button
@@ -169,28 +178,44 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
           disabled={scale === 1 && offset.x === 0 && offset.y === 0}
           title="Reset zoom (0)"
           aria-label="Reset zoom"
-          className="w-8 h-8 rounded-[6px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="w-7 h-7 rounded-[5px] hover:bg-white/10 disabled:opacity-35 flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
-          <FiRotateCcw className="w-3.5 h-3.5" />
+          <FiRotateCcw className="w-3 h-3" />
         </button>
 
-        <div className="w-[1px] h-5 bg-white/15 mx-0.5" />
+        {onDownload && (
+          <>
+            <div className="w-[1px] h-4 bg-white/15 mx-0.5" />
+            <button
+              type="button"
+              disabled={downloading}
+              onClick={onDownload}
+              title={downloadLabel}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[5px] bg-[#3E6B48] hover:brightness-110 text-white text-[0.7rem] font-semibold transition-all cursor-pointer disabled:opacity-50"
+            >
+              <FiDownload className="w-3 h-3" />
+              <span>{downloading ? "Saving..." : downloadLabel}</span>
+            </button>
+          </>
+        )}
+
+        <div className="w-[1px] h-4 bg-white/15 mx-0.5" />
 
         <button
           type="button"
           onClick={onClose}
           title="Close (Esc)"
           aria-label="Close Lightbox"
-          className="w-8 h-8 rounded-[6px] hover:bg-white/15 text-white/85 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 rounded-[5px] hover:bg-white/15 text-white/85 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
         >
-          <FiX className="w-4.5 h-4.5" />
+          <FiX className="w-4 h-4" />
         </button>
       </div>
 
       {/* Bottom Hint Pill */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[72] bg-[#15202C]/85 border border-white/10 text-white/75 text-[0.72rem] px-3 py-1 rounded-full backdrop-blur-md pointer-events-none hidden sm:block"
+        className={`fixed bottom-4 left-1/2 -translate-x-1/2 ${toolbarZClass} bg-[#15202C]/85 border border-white/10 text-white/75 text-[0.72rem] px-3 py-1 rounded-full backdrop-blur-md pointer-events-none hidden sm:block`}
       >
         Scroll or click image to zoom · Drag to move · Esc to close
       </div>
@@ -223,8 +248,8 @@ export default function ScreenshotLightbox({ imageSrc, onClose }) {
           <SafeImage
             src={imageSrc}
             alt="Full Screenshot Preview"
-            className="max-h-[85vh] max-w-[88vw] object-contain rounded-[6px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/10"
-            fallbackClassName="w-[320px] h-[240px] rounded-[6px] border border-white/15 bg-[#15202C] text-[#94A3B8]"
+            className={`max-h-[85vh] max-w-[88vw] object-contain ${imageRoundedClass} shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-white/10`}
+            fallbackClassName={`w-[320px] h-[240px] ${imageRoundedClass} border border-white/15 bg-[#15202C] text-[#94A3B8]`}
           />
         </div>
       </div>

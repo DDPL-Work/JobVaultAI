@@ -1,5 +1,10 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import apiClient from "../apiClient";
+import {
+  appendPaginationQuery,
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_REVIEW_PAGE_SIZE,
+} from "../../utils/pagination";
 
 export const fetchJobs = createAsyncThunk(
   "jobs/fetchJobs",
@@ -9,9 +14,12 @@ export const fetchJobs = createAsyncThunk(
       if (params.vault && params.vault !== "all") searchParams.set("vault", params.vault);
       if (params.source && params.source !== "all") searchParams.set("source", params.source);
       if (params.status && params.status !== "all") searchParams.set("status", params.status);
-      if (params.search) searchParams.set("search", params.search);
-      if (params.page) searchParams.set("page", params.page);
-      if (params.page_size) searchParams.set("page_size", params.page_size);
+      const q = (params.q ?? params.search ?? "").trim();
+      if (q) {
+        searchParams.set("q", q);
+        searchParams.set("search", q);
+      }
+      appendPaginationQuery(searchParams, params, DEFAULT_PAGE_SIZE);
 
       const qs = searchParams.toString();
       const endpoint = qs ? `/api/jobs/?${qs}` : "/api/jobs/";
@@ -25,9 +33,11 @@ export const fetchJobs = createAsyncThunk(
 
 export const fetchReviewJobs = createAsyncThunk(
   "jobs/fetchReviewJobs",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const data = await apiClient.get("/api/jobs/?status=review");
+      const searchParams = new URLSearchParams({ status: "review" });
+      appendPaginationQuery(searchParams, params, DEFAULT_REVIEW_PAGE_SIZE);
+      const data = await apiClient.get(`/api/jobs/?${searchParams.toString()}`);
       return data;
     } catch (err) {
       return rejectWithValue(err.message || "Failed to fetch review queue");
